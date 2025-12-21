@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0004-continue-the-project
+Agent: Developer
+Task: continue the project
+Context:
+- Continue backend-first work, finalize persistence and recurrence semantics.
+- Maintain agentic workflow: new meetings via CLI, opinions preserved.
+Position:
+Recommendations:
+- Sequence work: (1) storage interface + in-memory adapter, (2) recurrence override handling, (3) DSL + tests for new commands.
+- Keep code dependency-light and add tests before implementation to avoid regressions.
+- Maintain end-to-end validations for CLI/DSL paths; run `pytest --maxfail=1` before every commit.

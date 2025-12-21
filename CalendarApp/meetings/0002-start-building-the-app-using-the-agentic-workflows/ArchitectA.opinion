@@ -4,5 +4,12 @@ Meeting: 0002-start-building-the-app-using-the-agentic-workflows
 Agent: ArchitectA
 Task: start building the app using the agentic workflows
 Context:
+- CalendarApp spec emphasizes transport-agnostic backend, strong validation, and opinion logs per meeting.
+- We now have the kickoff meeting folder; DSL and services exist but frontends are not started.
 Position:
+- Start with backend hardening and API/DSL completeness so any frontend can rely on consistent contracts.
+- Keep meetings additive—do not overwrite prior notes; allocate future meetings for milestones.
 Recommendations:
+- Map current backend gaps against spec (recurrence exceptions, participant flows, DSL coverage) and prioritize fixes.
+- Use CLI to create new meetings per task and keep two architects involved for each decision.
+- Document any deviations in spec files before implementing to preserve alignment across agents.

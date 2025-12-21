@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0004-continue-the-project
+Agent: Arbiter
+Task: continue the project
+Context:
+- Continue backend-first work, finalize persistence and recurrence semantics.
+- Maintain agentic workflow: new meetings via CLI, opinions preserved.
+Position:
+Recommendations:
+- Call for a storage interface proposal (with default adapter) and recurrence override plan, both backed by tests.
+- Ensure DSL coverage for new behaviors and clear error messages; reject changes lacking tests.
+- Keep meeting hygiene: open new meetings via CLI and do not overwrite prior opinions.

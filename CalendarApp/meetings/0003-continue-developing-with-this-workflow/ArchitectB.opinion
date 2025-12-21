@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0003-continue-developing-with-this-workflow
+Agent: ArchitectB
+Task: continue developing with this workflow
+Context:
+- Need to evolve backend while keeping dependency footprint low; transport-agnostic requirement remains.
+- Prior notes pushed for DSL completeness and meeting hygiene.
+Position:
+- Favor bespoke persistence layer with clear boundaries over pulling databases too early.
+- Aim for small, reversible steps; debate contentious design choices before coding them.
+Recommendations:
+- Define storage interface and default adapter; avoid leakage of storage details into services or DSL executor.
+- Capture recurrence/participant edge cases in spec and tests before frontends rely on them.
+- Keep using CLI to create meetings per milestone so we preserve chronological decision history.

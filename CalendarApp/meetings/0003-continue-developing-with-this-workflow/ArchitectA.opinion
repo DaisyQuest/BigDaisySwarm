@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0003-continue-developing-with-this-workflow
+Agent: ArchitectA
+Task: continue developing with this workflow
+Context:
+- We have DSL, calendar services, and meeting scaffolding; agents must keep alignment with spec and transport-agnostic goals.
+- Meeting 0002 captured backend-first direction; this meeting should plan concrete increments.
+Position:
+- Prioritize architecture decisions before expanding features: persistence abstraction and recurrence exceptions need design clarity.
+- Maintain dual-architect debate with written opinions and avoid silent scope creep.
+Recommendations:
+- Draft a lightweight persistence interface (in-memory + pluggable backing) and schedule a debate on recurrence overrides semantics.
+- Keep AGENTS instructions in view: new tasks require CLI-created meetings; avoid overwriting earlier opinions.
+- Ensure every new contract change is mirrored in tests and, if necessary, spec updates.

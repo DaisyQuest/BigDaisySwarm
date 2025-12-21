@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0004-continue-the-project
+Agent: ArchitectA
+Task: continue the project
+Context:
+- Continue backend-first work, finalize persistence and recurrence semantics.
+- Maintain agentic workflow: new meetings via CLI, opinions preserved.
+Position:
+Recommendations:
+- Define storage abstraction (interface + default in-memory adapter) before wiring any frontend transports.
+- Clarify recurrence override semantics (cancel/reschedule single occurrence) and codify them in tests + DSL.
+- Keep architect debates recorded; avoid silent scope creep—open a new meeting for major design choices.

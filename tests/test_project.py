@@ -44,6 +44,11 @@ def test_scaffold_project_creates_structure(tmp_path):
     meeting_dir = project_root / "meetings" / DEFAULT_MEETING_ID
     assert meeting_dir.is_dir()
 
+    summary_file = meeting_dir / "summary.md"
+    assert summary_file.is_file()
+    summary_content = summary_file.read_text(encoding="utf-8")
+    assert f"Meeting: {DEFAULT_MEETING_ID}" in summary_content
+
     opinion_files = list(meeting_dir.glob("*.opinion"))
     assert len(opinion_files) == len(default_agents)
 
@@ -83,6 +88,8 @@ def test_create_meeting_preserves_existing_opinions(tmp_path):
     meeting_path.mkdir(parents=True)
     seeded = meeting_path / "ArchitectA.opinion"
     seeded.write_text("Keep this", encoding="utf-8")
+    summary = meeting_path / "summary.md"
+    summary.write_text("Do not overwrite summary", encoding="utf-8")
 
     create_meeting(meeting_root, "0001-seeded", agent_ids)
 
@@ -92,6 +99,7 @@ def test_create_meeting_preserves_existing_opinions(tmp_path):
     developer_content = developer_file.read_text(encoding="utf-8")
     assert "Meeting: 0001-seeded" in developer_content
     assert "Agent: Developer" in developer_content
+    assert summary.read_text(encoding="utf-8") == "Do not overwrite summary"
 
 
 def test_next_meeting_id_increments_existing_structure(tmp_path):
@@ -115,6 +123,12 @@ def test_kickoff_task_creates_new_meeting_with_task(tmp_path):
     meeting_path = kickoff_task(project_root, task="Continue developing the software")
     assert meeting_path.is_dir()
     assert meeting_path.name.startswith("0002-continue-developing-the-software")
+
+    summary_file = meeting_path / "summary.md"
+    assert summary_file.exists()
+    summary_content = summary_file.read_text(encoding="utf-8")
+    assert f"Meeting: {meeting_path.name}" in summary_content
+    assert "Task: Continue developing the software" in summary_content
 
     opinion_files = list(meeting_path.glob("*.opinion"))
     assert opinion_files, "expected opinion files to be created"
@@ -142,6 +156,11 @@ def test_kickoff_task_respects_custom_meeting_id_and_existing_opinion(tmp_path):
     assert developer_content.startswith("# Opinion")
     assert "Task: Ship it" in developer_content
     assert "Meeting: 0100-custom" in developer_content
+    summary_file = custom_meeting / "summary.md"
+    assert summary_file.exists()
+    summary_content = summary_file.read_text(encoding="utf-8")
+    assert "Meeting: 0100-custom" in summary_content
+    assert "Task: Ship it" in summary_content
 
 
 def test_kickoff_task_requires_team_config(tmp_path):
@@ -180,6 +199,10 @@ def test_kickoff_task_cli(tmp_path, monkeypatch):
 
     meetings = sorted((project_root / "meetings").iterdir())
     assert meetings[-1].name.startswith("0002-continue-developing-the-software")
+
+    summary_file = meetings[-1] / "summary.md"
+    assert summary_file.exists()
+    assert "continue developing the software" in summary_file.read_text(encoding="utf-8")
 
 
 def test_cli_reports_errors(tmp_path, capsys):

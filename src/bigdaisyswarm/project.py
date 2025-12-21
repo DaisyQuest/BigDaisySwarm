@@ -88,6 +88,21 @@ def create_meeting(opinion_root: Path, meeting_id: str, agent_ids: Sequence[str]
     meeting_path = opinion_root / meeting_id
     meeting_path.mkdir(parents=True, exist_ok=True)
 
+    summary_file = meeting_path / "summary.md"
+    if not summary_file.exists():
+        summary_file.write_text(
+            "# Meeting Summary\n\n"
+            f"Meeting: {meeting_id}\n"
+            f"Task: {task or ''}\n\n"
+            "## Outcomes\n"
+            "- \n\n"
+            "## Decisions\n"
+            "- \n\n"
+            "## Next steps\n"
+            "- \n",
+            encoding="utf-8",
+        )
+
     for agent_id in agent_ids:
         opinion_file = meeting_path / f"{agent_id}.opinion"
         if not opinion_file.exists():

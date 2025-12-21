@@ -4,5 +4,12 @@ Meeting: 0002-start-building-the-app-using-the-agentic-workflows
 Agent: Critic
 Task: start building the app using the agentic workflows
 Context:
+- Multiple agents will touch meeting files; risk of overwriting prior opinions or skipping validation.
+- Backend lacks persistence strategy and recurrence exceptions; DSL growth could outpace tests.
 Position:
+- Guard against configuration drift (teamconfig, AGENTS instructions) and untracked meeting ids.
+- Watch for hidden dependencies or shortcuts that erode the transport-agnostic goal.
 Recommendations:
+- Enforce meeting creation via CLI only; avoid manual folder edits that could bypass validation.
+- Require tests for every new DSL branch and participant path; flag any untested exceptions.
+- Keep opinion files append-only per meeting; create new meetings for significant tasks to preserve history.

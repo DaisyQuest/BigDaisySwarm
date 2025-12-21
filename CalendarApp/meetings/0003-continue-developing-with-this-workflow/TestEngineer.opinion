@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0003-continue-developing-with-this-workflow
+Agent: TestEngineer
+Task: continue developing with this workflow
+Context:
+- DSL participant commands are in place; recurrence and persistence behaviors are pending.
+- Meeting discipline requires tests for every branch before delivery.
+Position:
+- Tests should drive implementation order; cover both happy paths and boundary failures.
+- Fast, isolated fixtures (tmp_path + in-memory services) keep the suite lightweight.
+Recommendations:
+- For persistence work, add contract tests that can be reused across adapters.
+- Add recurrence override tests (cancel single occurrence, reschedule) and ensure DSL reports errors clearly.
+- Maintain coverage for CLI meeting workflows to prevent regressions in agent onboarding.
