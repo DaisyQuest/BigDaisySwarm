@@ -17,11 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}
-      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}                 # e.g. "myregistry" (NOT the full FQDN)
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }} # e.g. "myregistry.azurecr.io"
       AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,22 +33,45 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Validate required secrets
+        shell: bash
         run: |
+          set -euo pipefail
           missing=0
           for var in ACR_NAME ACR_LOGIN_SERVER AZURE_RESOURCE_GROUP WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
-            if [ -z "${!var}" ]; then
-              echo "::error title=Missing secret::${var} is required";
-              missing=1;
+            if [ -z "${!var:-}" ]; then
+              echo "::error title=Missing secret::${var} is required"
+              missing=1
             fi
           done
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
 
-      - name: Login to Azure Container Registry
+      - name: Resolve ACR login server (source of truth) + mask
+        shell: bash
         run: |
-          az acr login --name "$ACR_NAME" --only-show-errors
-          echo "::add-mask::${ACR_LOGIN_SERVER}"
+          set -euo pipefail
+          # Prefer Azure as source of truth in case the secret is wrong or includes whitespace.
+          LOGIN_SERVER="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)"
+          if [ -z "$LOGIN_SERVER" ]; then
+            echo "::error title=ACR Not Found::Could not resolve loginServer for ACR_NAME=$ACR_NAME"
+            exit 1
+          fi
+          echo "ACR_LOGIN_SERVER=$LOGIN_SERVER" >> "$GITHUB_ENV"
+          echo "::add-mask::$LOGIN_SERVER"
+
+      - name: ACR docker login (token)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv)"
+          if [ -z "$TOKEN" ]; then
+            echo "::error title=ACR Token Error::Failed to obtain ACR access token. Check AcrPull/AcrPush role on the registry."
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          # Username is ignored for AAD access tokens; this placeholder is standard.
+          echo "$TOKEN" | docker login "$ACR_LOGIN_SERVER" -u 00000000-0000-0000-0000-000000000000 --password-stdin
 
       - name: Build and push web client image
         uses: docker/build-push-action@v6
@@ -69,6 +93,7 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
+            set -euo pipefail
             az webapp config container set \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -87,6 +112,7 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
+            set -euo pipefail
             az webapp config container set \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
