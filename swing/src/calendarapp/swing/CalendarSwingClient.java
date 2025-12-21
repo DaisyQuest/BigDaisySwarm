@@ -25,7 +25,7 @@ public class CalendarSwingClient {
 
     public CalendarSwingClient(CalendarBackend backend, boolean createWindow) {
         this.backend = Objects.requireNonNull(backend, "backend");
-        this.tableModel = new DefaultTableModel(new Object[]{"Title", "Start", "End", "Timezone"}, 0) {
+        this.tableModel = new DefaultTableModel(new Object[]{"Calendar", "Title", "Start", "End", "Timezone", "Description", "Status"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -56,8 +56,30 @@ public class CalendarSwingClient {
         refreshTable(backend.listEvents());
     }
 
+    public void loadAllEventsIncludingCanceled() {
+        refreshTable(backend.listEventsIncludingCanceled());
+    }
+
+    public void filterByCalendar(String calendarId) {
+        refreshTable(backend.listEventsForCalendar(calendarId));
+    }
+
+    public void filterByCalendarAndDate(String calendarId, LocalDate date) {
+        refreshTable(backend.listEventsForCalendarOnDate(calendarId, date));
+    }
+
     public void filterByDate(LocalDate date) {
         refreshTable(backend.listEventsForDate(date));
+    }
+
+    public void filterCanceledEvents() {
+        List<CalendarEvent> canceled = new java.util.ArrayList<>();
+        for (CalendarEvent event : backend.listEventsIncludingCanceled()) {
+            if (event.isCanceled()) {
+                canceled.add(event);
+            }
+        }
+        refreshTable(canceled);
     }
 
     JTable getTable() {
@@ -76,10 +98,13 @@ public class CalendarSwingClient {
         tableModel.setRowCount(0);
         for (CalendarEvent event : events) {
             tableModel.addRow(new Object[]{
+                    event.getCalendarId(),
                     event.getTitle(),
                     formatter.format(event.getStart()),
                     formatter.format(event.getEnd()),
-                    event.getTimezone()
+                    event.getTimezone(),
+                    event.getDescription() == null ? "" : event.getDescription(),
+                    event.isCanceled() ? "Canceled" : "Active"
             });
         }
     }

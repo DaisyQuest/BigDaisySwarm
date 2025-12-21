@@ -23,6 +23,17 @@ java -cp out calendarapp.swing.CalendarSwingApp
 
 By default the UI opens in non-headless mode. The data comes from `InMemoryCalendarBackend.sampleData()`, which mirrors the API surface expected by richer backends.
 
+## Connecting to the backend server
+The Swing client can synchronize with the live backend by using the HTTP backend:
+
+```java
+CalendarBackend backend = new HttpCalendarBackend("http://localhost:8080");
+CalendarSwingClient client = new CalendarSwingClient(backend);
+client.loadAllEvents();
+```
+
+`HttpCalendarBackend` talks to the server using JSON endpoints for listing, canceling, rescheduling, and upserting events. It accepts query parameters for `calendarId`, `date`, and `includeCanceled`, matching the Python backend’s API surface.
+
 ## Running tests
 The repository test suite includes the Swing harness. From the repo root:
 
