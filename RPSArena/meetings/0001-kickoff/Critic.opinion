@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: Critic
+Task: 
+Context:
+- Beginning RPS Arena as a separate project with ambitious performance + fairness goals.
+
+Position:
+- Early risks: scope creep (UI polish vs backend rigor), security gaps (auth/session), and reliance on in-memory defaults without Mongo validation.
+
+Recommendations:
+- Document assumptions and keep meeting notes current; prioritize server-authoritative rules and security basics even in MVP.
+- Schedule a Mongo integration check soon to prevent late surprises.

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: NoteTaker
+Task: bootstrap RPS Arena platform
+Context:
+- Bootstrapped RPS Arena as a standalone workspace (agents/teamconfig/meetings) with Node backend, Mongo-ready storage, and HTML/JS front end.
+- Modes: classic/extreme; variants: ranked/casual; features: registration, matchmaking, leaderboard/highscores, profile edits, history, unlockables.
+
+Position:
+- All core layers are in place with 100% coverage and Azure CI; gameplay is server-authoritative with validated move submissions.
+
+Recommendations:
+- Next: connect to real Mongo + Azure secrets, improve auth/session handling, and enhance UI flow (queue polling, match result UX, richer unlockables).

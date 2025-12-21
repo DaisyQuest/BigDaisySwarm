@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: ArchitectA
+Task: 
+Context:
+- New RPS Arena project being spun up separate from CalendarApp; goal is ultra-fast classic/extreme RPS with ranked/casual queues.
+
+Position:
+- Favor minimal, explicit architecture (plain Node services + Mongo repository) to keep control over latency and fairness.
+
+Recommendations:
+- Scaffold core layers (data, services, UI) with clear separation so future agents can extend without refactors.
+- Keep instructions and meetings up to date; enforce coverage and validation from day one.

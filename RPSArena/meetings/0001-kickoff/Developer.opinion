@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: Developer
+Task: 
+Context:
+- Preparing to build RPS Arena from scratch with Node + Mongo + vanilla HTML/JS; needs registration, matchmaking, leaderboard, unlockables.
+
+Position:
+- Keep implementation lightweight and modular (services + repositories + utilities) to support high coverage and quick iterations.
+
+Recommendations:
+- Start with scaffold_project output, then add package.json/scripts, server entrypoint, and tests alongside each module.
+- Use PBKDF2 for passwords and avoid extra dependencies unless essential.

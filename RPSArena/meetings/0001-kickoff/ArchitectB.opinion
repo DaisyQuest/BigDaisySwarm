@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: ArchitectB
+Task: 
+Context:
+- Kickoff for RPS Arena (Node backend, Mongo target, HTML/JS client) with competitive ranked/casual play.
+
+Position:
+- Prefer home-grown routing/matchmaking to avoid framework overhead and keep data flow transparent.
+
+Recommendations:
+- Define a shared domain model (users, matches, unlockables) early; keep storage swappable (memory vs Mongo).
+- Set up CI and coverage gates immediately to protect future iterations.
