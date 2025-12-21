@@ -5,9 +5,11 @@ import pytest
 
 from bigdaisyswarm.project import (
     DEFAULT_MEETING_ID,
+    append_summary_update,
     create_meeting,
     kickoff_task,
     next_meeting_id,
+    record_summary_update,
     scaffold_project,
     write_team_config,
     _slugify,
@@ -239,3 +241,92 @@ def test_create_meeting_rejects_duplicate_or_empty_agents(tmp_path):
 
     with pytest.raises(ValueError):
         create_meeting(opinion_root, "0001-kickoff", ["Dev", "Dev"])
+
+
+def test_append_summary_creates_missing_summary(tmp_path):
+    meeting_path = tmp_path / "meetings" / "0003-summary"
+    meeting_path.mkdir(parents=True)
+
+    summary_path = append_summary_update(
+        meeting_path,
+        outcomes=["Delivered MVP"],
+        decisions=["Ship to beta users"],
+        next_steps=["Monitor feedback"],
+        task="Release MVP",
+    )
+
+    content = summary_path.read_text(encoding="utf-8")
+    assert "Meeting: 0003-summary" in content
+    assert "Task: Release MVP" in content
+    assert "- Delivered MVP" in content
+    assert "- Ship to beta users" in content
+    assert "- Monitor feedback" in content
+
+
+def test_append_summary_appends_without_overwriting_existing_sections(tmp_path):
+    meeting_path = tmp_path / "meetings" / "0004-existing"
+    meeting_path.mkdir(parents=True)
+    summary_file = meeting_path / "summary.md"
+    summary_file.write_text(
+        "# Meeting Summary\n\n"
+        "Meeting: 0004-existing\n"
+        "Task: Existing work\n\n"
+        "## Outcomes\n"
+        "- Kept legacy behavior\n\n"
+        "## Decisions\n"
+        "- Proceed cautiously\n\n"
+        "## Next steps\n"
+        "- Document risks\n",
+        encoding="utf-8",
+    )
+
+    append_summary_update(
+        meeting_path,
+        outcomes=["Added new capability"],
+        decisions=["Revisit rollout plan"],
+        next_steps=["Schedule postmortem"],
+    )
+
+    updated = summary_file.read_text(encoding="utf-8")
+    assert "- Kept legacy behavior" in updated
+    assert "- Added new capability" in updated
+    assert updated.index("- Kept legacy behavior") < updated.index("- Added new capability")
+    assert "- Proceed cautiously" in updated
+    assert "- Revisit rollout plan" in updated
+    assert "- Document risks" in updated
+    assert "- Schedule postmortem" in updated
+
+
+def test_record_summary_update_handles_missing_sections_and_requires_meeting(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meeting_path = project_root / "meetings" / "0005-missing"
+    meeting_path.mkdir(parents=True)
+    summary_file = meeting_path / "summary.md"
+    summary_file.write_text(
+        "# Meeting Summary\n\n"
+        "Meeting: 0005-missing\n"
+        "Task: Partial summary\n\n"
+        "## Outcomes\n"
+        "- Initial outcome\n",
+        encoding="utf-8",
+    )
+
+    updated_path = record_summary_update(
+        project_root,
+        "0005-missing",
+        outcomes=["Follow-up outcome"],
+        decisions=["Capture decision later"],
+        next_steps=["Add retrospective notes"],
+    )
+
+    assert updated_path == summary_file
+    updated = summary_file.read_text(encoding="utf-8")
+    assert "- Initial outcome" in updated
+    assert "- Follow-up outcome" in updated
+    assert "## Decisions" in updated
+    assert "- Capture decision later" in updated
+    assert "## Next steps" in updated
+    assert "- Add retrospective notes" in updated
+
+    with pytest.raises(ValueError):
+        record_summary_update(project_root, "9999-missing")
