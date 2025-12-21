@@ -487,29 +487,41 @@ class DSLExecutor:
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
-    def _parse_datetime(value: str, field_name: str) -> dt.datetime:
+    def _parse_datetime(value: str | None, field_name: str) -> dt.datetime:
+        _require(value is not None, f"{field_name} is required")
         try:
             parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except Exception as exc:  # pragma: no cover - defensive
+        except (TypeError, ValueError) as exc:
             raise CalendarError(f"Invalid datetime format for {field_name}: {value}") from exc
         if parsed.tzinfo is None:
             raise CalendarError(f"Datetime values for {field_name} must include timezone info")
         return parsed
 
     @staticmethod
-    def _parse_date(value: str, field_name: str) -> dt.date:
+    def _parse_date(value: str | None, field_name: str) -> dt.date:
+        _require(value is not None, f"{field_name} is required")
         try:
             return dt.date.fromisoformat(value)
-        except Exception as exc:  # pragma: no cover - defensive
+        except (TypeError, ValueError) as exc:
             raise CalendarError(f"Invalid {field_name} date: Expected YYYY-MM-DD") from exc
 
     @staticmethod
-    def _parse_metadata(raw: str) -> Dict[str, object]:
+    def _parse_metadata(raw: str | None) -> Dict[str, object]:
+        _require(raw is not None, "metadata is required")
         try:
             parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise CalendarError("metadata must be valid JSON object") from exc
+        if not isinstance(parsed, dict):
+            raise CalendarError("metadata must be a JSON object mapping keys to values")
+        if any(not isinstance(key, str) for key in parsed.keys()):
+            raise CalendarError("metadata keys must be strings")
+        return parsed
+
+    @staticmethod
     def _tokenize(line: str) -> List[str]:
         try:
-            return shlex.split(line)
+            return shlex.split(line, posix=True)
         except ValueError as exc:
             raise CalendarError(f"Unable to parse line: {exc}") from exc
 
@@ -541,38 +553,7 @@ class DSLExecutor:
             return []
         return [item for item in value.split(",") if item]
 
-    def _parse_datetime(self, value: str | None, field_name: str) -> dt.datetime:
-        _require(value is not None, f"{field_name} is required")
-        try:
-            parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except (TypeError, ValueError):
-            raise CalendarError(f"Invalid datetime format for {field_name}: {value}")
-        if parsed.tzinfo is None:
-            raise CalendarError(f"Datetime values must include timezone offset for {field_name}")
-        return parsed
-
-    def _parse_date(self, value: str | None, field_name: str = "occurrence") -> dt.date:
-        _require(value is not None, f"{field_name} is required")
-        try:
-            return dt.datetime.strptime(value, "%Y-%m-%d").date()
-        except (TypeError, ValueError):
-            raise CalendarError(f"Invalid {field_name} date '{value}'. Expected YYYY-MM-DD")
-
-    def _parse_metadata(self, value: str | None) -> Dict[str, object]:
-        _require(value is not None, "metadata is required")
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError as exc:
-            raise CalendarError("metadata must be valid JSON object") from exc
-        if not isinstance(parsed, dict):
-            raise CalendarError("metadata must be a JSON object mapping keys to values")
-        return parsed
-
-    @staticmethod
-    def _split_list(raw: str) -> List[str]:
-        return [part for part in raw.split(",") if part]
-
-    def _validate_args(self, command: str, args: Dict[str, str], required: set[str], optional: set[str]) -> None:
+    def _validate_args(self, command: str, args: Mapping[str, str], required: set[str], optional: set[str]) -> None:
         if command == "RESCHEDULE_EVENT":
             has_start = "start" in args
             has_end = "end" in args
@@ -590,56 +571,11 @@ class DSLExecutor:
             unknown_msg = ", ".join(unknown)
             raise CalendarError(f"{command} has unknown arguments: {unknown_msg}")
 
-    @staticmethod
-    def _parse_args(tokens: List[str]) -> Dict[str, str]:
-        args: Dict[str, str] = {}
-        for token in tokens:
-            if "=" not in token:
-                raise CalendarError(f"Invalid token '{token}': expected key=value")
-            key, _, value = token.partition("=")
-            if not key:
-                raise CalendarError("Argument names cannot be empty")
-            if key not in args:
-                args[key] = value
-        return args
-
-    @staticmethod
-    def _tokenize(line: str) -> List[str]:
-        try:
-            return shlex.split(line, posix=True)
-        except ValueError as exc:
-            raise CalendarError(f"Unable to parse line: {line}") from exc
-
-    def _require_participant_service(self) -> ParticipantService:
-        if not self.participant_service:
-            raise CalendarError("Participant service is not configured for participant operations")
-        return self.participant_service
-
-    @staticmethod
-    def _unknown_command_message(command: str) -> str:
-        return f"Unknown command '{command}'"
-        if any(not isinstance(key, str) for key in parsed.keys()):
-            raise CalendarError("metadata keys must be strings")
-        return parsed
-
     def _require_participant_service(self) -> ParticipantService:
         if self.participant_service is None:
             raise CalendarError("Participant service is not configured")
         return self.participant_service
 
-    def _validate_args(
-        self,
-        command: str,
-        args: Mapping[str, str],
-        required: set[str],
-        optional: set[str],
-    ) -> None:
-        missing = sorted(required - set(args.keys()))
-        if missing:
-            raise CalendarError(f"{command} missing required arguments: {', '.join(missing)}")
-        unknown = sorted(set(args.keys()) - required - optional)
-        if unknown:
-            raise CalendarError(f"{command} has unknown arguments: {', '.join(unknown)}")
-
-    def _unknown_command_message(self, command: str) -> str:
-        return f"Unknown command: {command}"
+    @staticmethod
+    def _unknown_command_message(command: str) -> str:
+        return f"Unknown command '{command}'"
