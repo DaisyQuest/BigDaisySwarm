@@ -65,6 +65,35 @@ def _extract_index(name: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _load_agent_ids(project_root: Path) -> list[str]:
+    team_config_path = project_root / "teamconfig.json"
+    if not team_config_path.is_file():
+        raise ValueError(f"teamconfig.json not found at {team_config_path}")
+
+    with team_config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+
+    if "agents" not in data:
+        raise ValueError("teamconfig.json must include an 'agents' list")
+
+    agents = data["agents"]
+    validate_team_config(agents)
+    return [entry["id"] for entry in agents]
+
+
+def _planned_meeting_path(project_root: Path, task: str, meeting_id: str | None = None) -> tuple[Path, str]:
+    if not task:
+        raise ValueError("task is required to kickoff work")
+
+    if meeting_id and _extract_index(meeting_id) is None:
+        raise ValueError("meeting_id must start with a numeric prefix")
+
+    opinion_root = project_root / "meetings"
+    slug = _slugify(task)
+    meeting_identifier = meeting_id or next_meeting_id(opinion_root, slug=slug)
+    return opinion_root / meeting_identifier, meeting_identifier
+
+
 def next_meeting_id(opinion_root: Path, *, slug: str) -> str:
     """Pick the next meeting id based on existing numbered folders."""
     highest_index = 0
@@ -120,6 +149,29 @@ def create_meeting(opinion_root: Path, meeting_id: str, agent_ids: Sequence[str]
     return meeting_path
 
 
+def list_meetings(project_root: Path) -> list[Path]:
+    """Return meeting folders sorted by numeric prefix."""
+    opinion_root = project_root / "meetings"
+    if not opinion_root.exists():
+        raise ValueError(f"meetings directory not found at {opinion_root}")
+    if not opinion_root.is_dir():
+        raise ValueError(f"meetings path is not a directory: {opinion_root}")
+
+    meetings = [
+        child
+        for child in opinion_root.iterdir()
+        if child.is_dir() and _extract_index(child.name) is not None
+    ]
+    return sorted(meetings, key=lambda path: (_extract_index(path.name) or 0, path.name))
+
+
+def latest_meeting_path(project_root: Path) -> Path:
+    meetings = list_meetings(project_root)
+    if not meetings:
+        raise ValueError(f"No meetings found under {project_root / 'meetings'}")
+    return meetings[-1]
+
+
 def scaffold_project(
     project_root: Path,
     agent_types: Iterable[AgentType] | None = None,
@@ -143,28 +195,13 @@ def scaffold_project(
 
 def kickoff_task(project_root: Path, task: str, meeting_id: str | None = None) -> Path:
     """Create a new meeting for a task and populate opinion files with the task context."""
-    if not task:
-        raise ValueError("task is required to kickoff work")
+    agent_ids = _load_agent_ids(project_root)
+    meeting_path, meeting_identifier = _planned_meeting_path(project_root, task, meeting_id)
+    return create_meeting(meeting_path.parent, meeting_identifier, agent_ids, task=task)
 
-    if meeting_id and _extract_index(meeting_id) is None:
-        raise ValueError("meeting_id must start with a numeric prefix")
 
-    team_config_path = project_root / "teamconfig.json"
-    if not team_config_path.is_file():
-        raise ValueError(f"teamconfig.json not found at {team_config_path}")
-
-    with team_config_path.open(encoding="utf-8") as config_file:
-        data = json.load(config_file)
-
-    if "agents" not in data:
-        raise ValueError("teamconfig.json must include an 'agents' list")
-
-    agents = data["agents"]
-    validate_team_config(agents)
-    agent_ids = [entry["id"] for entry in agents]
-
-    opinion_root = project_root / "meetings"
-    slug = _slugify(task)
-    meeting_identifier = meeting_id or next_meeting_id(opinion_root, slug=slug)
-
-    return create_meeting(opinion_root, meeting_identifier, agent_ids, task=task)
+def plan_next_meeting(project_root: Path, task: str, meeting_id: str | None = None) -> Path:
+    """Return the path for the next meeting without creating it."""
+    _load_agent_ids(project_root)
+    meeting_path, _ = _planned_meeting_path(project_root, task, meeting_id)
+    return meeting_path

@@ -7,7 +7,10 @@ from bigdaisyswarm.project import (
     DEFAULT_MEETING_ID,
     create_meeting,
     kickoff_task,
+    latest_meeting_path,
+    list_meetings,
     next_meeting_id,
+    plan_next_meeting,
     scaffold_project,
     write_team_config,
     _slugify,
@@ -239,3 +242,58 @@ def test_create_meeting_rejects_duplicate_or_empty_agents(tmp_path):
 
     with pytest.raises(ValueError):
         create_meeting(opinion_root, "0001-kickoff", ["Dev", "Dev"])
+
+
+def test_plan_next_meeting_is_dry_run(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    planned = plan_next_meeting(project_root, task="Continue working")
+    assert planned.name.startswith("0002-continue-working")
+    assert not planned.exists()
+
+    # Original meeting preserved
+    assert (project_root / "meetings" / DEFAULT_MEETING_ID / "summary.md").exists()
+
+
+def test_plan_next_meeting_rejects_invalid_meeting_id(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    with pytest.raises(ValueError):
+        plan_next_meeting(project_root, task="Work", meeting_id="custom-id")
+
+
+def test_list_meetings_requires_directory(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    project_root.mkdir()
+    write_team_config(project_root / "teamconfig.json", default_team_config())
+
+    with pytest.raises(ValueError):
+        list_meetings(project_root)
+
+    meetings_path = project_root / "meetings"
+    meetings_path.write_text("not a dir")
+    with pytest.raises(ValueError):
+        list_meetings(project_root)
+
+
+def test_list_meetings_filters_and_sorts(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meetings = project_root / "meetings"
+    meetings.mkdir(parents=True)
+    (meetings / "0003-design").mkdir()
+    (meetings / "0001-kickoff").mkdir()
+    (meetings / "notes").mkdir()
+
+    sorted_meetings = list_meetings(project_root)
+    assert [path.name for path in sorted_meetings] == ["0001-kickoff", "0003-design"]
+
+
+def test_latest_meeting_path_requires_entries(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meetings = project_root / "meetings"
+    meetings.mkdir(parents=True)
+
+    with pytest.raises(ValueError):
+        latest_meeting_path(project_root)

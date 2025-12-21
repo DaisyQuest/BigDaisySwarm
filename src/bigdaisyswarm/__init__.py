@@ -18,6 +18,7 @@ from .calendar import (
     ParticipantService,
 )
 from .project import create_meeting, scaffold_project, write_team_config
+from .project import kickoff_task, latest_meeting_path, list_meetings, plan_next_meeting
 
 __all__ = [
     "AgentType",
@@ -26,6 +27,10 @@ __all__ = [
     "create_meeting",
     "default_agent_types",
     "default_team_config",
+    "kickoff_task",
+    "latest_meeting_path",
+    "list_meetings",
+    "plan_next_meeting",
     "scaffold_project",
     "validate_team_config",
     "write_team_config",
