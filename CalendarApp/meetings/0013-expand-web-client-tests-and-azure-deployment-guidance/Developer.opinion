@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: Developer
+Task: expand web client tests and azure deployment guidance
+Context:
+- Need to cover storage exceptions, range filter errors, and template info states while staying dependency-free.
+- Azure deployment steps should be straightforward for the static bundle.
+Position:
+- Add guarded storage load/save with warnings; test get/set failures and ensure fallbacks.
+- Write an Azure deployment doc with ready-to-run CLI commands for Static Web Apps and Storage static hosting.
+Recommendations:
+- Extend Node-driven tests for storage errors, range filtering, and status rendering.
+- Keep code expressive and deterministic; rerun full pytest with `--maxfail=1` after changes.

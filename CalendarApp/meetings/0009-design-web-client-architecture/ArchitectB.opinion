@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: ArchitectB
+Task: design web client architecture
+Context:
+- We want expressive visuals without introducing heavy frameworks.
+- Determinism matters for tests and for consistent brand identity.
+Position:
+- Keep UI templates declarative and lean; avoid runtime DOM construction beyond innerHTML replacements.
+- Build a color wheel keyed off calendar ids to maintain cohesive gradients.
+Recommendations:
+- Include empty-state copy inside templates to handle zero calendars/events elegantly.
+- Make the insights block data-driven (counts, span days, highlight) to reinforce value even before a backend exists.
+- Prefer human-readable time labels via Intl formatting to keep localization straightforward later.

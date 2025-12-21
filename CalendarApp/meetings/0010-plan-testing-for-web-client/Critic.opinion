@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: Critic
+Task: plan testing for web client
+Context:
+- Thin clients can hide bugs if empty states and validation paths are not exercised.
+Position:
+- Push for tests that deliberately break things: malformed dates, missing owners, inverted ranges.
+- Ensure template tests verify placeholder copy so users never see blank UI.
+Recommendations:
+- Include coverage for storage adapters to avoid silent failures when localStorage is unavailable.
+- Verify insights math so long events don't skew timelines unnoticed.
+- Keep error messages human-readable and assert them to prevent regressions.

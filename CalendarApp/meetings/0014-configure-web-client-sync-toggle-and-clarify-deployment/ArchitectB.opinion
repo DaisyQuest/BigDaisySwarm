@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: ArchitectB
+Task: configure web client sync toggle and clarify deployment
+Context:
+- Need expressive configuration and simple deployment; sync must be optional.
+Position:
+- Create a config module with mergeable defaults and a remote adapter hook.
+- Keep UI messaging explicit about sync mode.
+Recommendations:
+- Implement local-first fallback with warnings when remote adapters fail or are absent.
+- Add Azure deployment guidance that requires no build step and references the config hook.

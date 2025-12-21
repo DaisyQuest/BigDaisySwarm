@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: Arbiter
+Task: configure web client sync toggle and clarify deployment
+Context:
+- Architects, Developer, and TestEngineer support the config module with local-first fallback and stronger docs.
+Position:
+- Approve adding config-driven storage selection, sync status messaging, Azure deployment guide updates, and comprehensive tests.
+Recommendations:
+- Complete the implementation, run full pytest, and update PR notes to reflect configurability and deployment clarity.

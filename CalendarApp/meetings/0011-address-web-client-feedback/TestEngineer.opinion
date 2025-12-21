@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: TestEngineer
+Task: address web client feedback
+Context:
+- Current coverage misses metadata error paths, palette determinism, and localStorage-backed persistence.
+- Templates lack explicit checks for empty calendar lists.
+Position:
+- Expand Node-driven tests to hit every branch: invalid metadata, bad date types, highlight math, empty-state copy, storage adapters.
+- Keep tests self-contained and JSON-reporting to avoid brittle string parsing.
+Recommendations:
+- Add DSL tests for metadata JSON parsing failures.
+- Add JS tests for normalization, duration calculations, and simulated localStorage reads/writes.
+- Verify template empty states (agendas and calendar lists) explicitly.

@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: TestEngineer
+Task: configure web client sync toggle and clarify deployment
+Context:
+- We must cover the new config/sync toggle: remote adapter path, fallback warnings, and local-only mode.
+Position:
+- Add Node-driven tests for config resolution, remote adapter success/failure, and warning emissions.
+- Keep tests JSON-driven to avoid brittle markup checks.
+Recommendations:
+- Ensure resolveConfig respects `window.__CALENDAR_APP_CONFIG__` and overrides.
+- Verify remote save failures fall back to local storage and remote load failures warn and still return data.

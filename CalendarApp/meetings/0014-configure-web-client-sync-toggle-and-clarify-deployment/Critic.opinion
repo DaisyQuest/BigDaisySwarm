@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: Critic
+Task: configure web client sync toggle and clarify deployment
+Context:
+- Sync needs to be optional and safe; deployment instructions must be precise.
+Position:
+- Demand warnings when sync is enabled without a remote adapter; fall back to local storage.
+- Keep configuration explicit and documented.
+Recommendations:
+- Test remote adapter failures and ensure status messaging reflects sync mode.
+- Document Azure deployment with the configuration hook to avoid ambiguity.

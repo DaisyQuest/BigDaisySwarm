@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: Critic
+Task: expand web client tests and azure deployment guidance
+Context:
+- Storage helpers lacked explicit coverage for exceptions; deployment lacked guidance.
+Position:
+- Insist on defensive storage handling with warnings and tested fallbacks.
+- Provide concise Azure instructions to avoid confusion when shipping the static client.
+Recommendations:
+- Test storage get/set failures, range errors, and template info states.
+- Keep documentation crisp and aligned with the code’s dependency-free posture.

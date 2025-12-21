@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: ArchitectB
+Task: expand web client tests and azure deployment guidance
+Context:
+- We want expressive yet robust client code; storage failures and range errors still need explicit handling.
+- Deployment should be frictionless on Azure with clear steps and no build pipeline.
+Position:
+- Favor defensive storage parsing with readable warnings and recoveries.
+- Document Azure Static Web Apps and Storage static website flows with minimal commands.
+Recommendations:
+- Expand tests for storage get/set failures, info status rendering, and range errors.
+- Keep the UI dependency-free and highlight deterministic behaviors in docs for predictability during deploys.

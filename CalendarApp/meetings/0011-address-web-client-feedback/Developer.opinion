@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: Developer
+Task: address web client feedback
+Context:
+- Tests pass but gaps remain: metadata validation not covered, palette determinism unverified, localStorage path untested.
+- Duplicate DSLExecutor helpers risk subtle behavioral differences.
+Position:
+- Normalize helpers and expand pytest-driven Node scripts to cover normalization, insights, and storage adapters.
+- Keep code dependency-free while improving clarity and test coverage.
+Recommendations:
+- Remove redundant helper definitions in DSLExecutor and keep strict metadata/argument validation.
+- Add Node scripts to assert owner/tag trimming, duration math, highlight selection, and simulated localStorage saves.
+- Re-run full suite with PYTHONPATH=.:src pytest --maxfail=1 before handoff.

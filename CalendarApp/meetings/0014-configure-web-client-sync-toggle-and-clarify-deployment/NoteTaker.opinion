@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: NoteTaker
+Task: configure web client sync toggle and clarify deployment
+Context:
+- Team aligned on adding a config module with sync toggle and documenting Azure deployment.
+Position:
+- Consensus: local-first fallback with warnings, UI status mentions sync mode, tests for config/resilience.
+Recommendations:
+- Record configuration steps and Azure publishing commands; ensure full pytest run after changes.

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: TestEngineer
+Task: expand web client tests and azure deployment guidance
+Context:
+- Gaps remain: storage get/set exceptions, rangeStart type errors, template info messages.
+- Deployment guide should be clear and verifiable.
+Position:
+- Add Node tests for storage exception handling and range filtering; assert warnings and fallbacks.
+- Document Azure deployment options with CLI steps for reproducibility.
+Recommendations:
+- Capture warnings from console to ensure error branches execute.
+- Keep tests JSON-driven for stability; rerun full pytest before delivery.

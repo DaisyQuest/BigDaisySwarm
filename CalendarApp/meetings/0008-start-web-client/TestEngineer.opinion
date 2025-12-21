@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: TestEngineer
+Task: start web client
+Context:
+- We must keep coverage high and exercise both success paths and validation branches.
+- Tests will run under pytest, but the logic to validate lives in JS.
+Position:
+- Lean on Node subprocesses to run JS against the same modules the browser will use.
+- Validate both happy paths (agenda rendering, seed data) and error handling (bad ranges, missing owners).
+Recommendations:
+- Add pytest helpers that execute Node scripts and parse JSON output to assert model behaviors.
+- Include shell-level checks that the HTML contains all hook regions so the controller can bind safely.
+- Cover empty and populated agenda rendering to guard against regressions in template output.

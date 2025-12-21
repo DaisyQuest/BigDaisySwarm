@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: ArchitectB
+Task: plan testing for web client
+Context:
+- Visual expressiveness is important; tests need to keep style hooks intact.
+Position:
+- Favor snapshot-like checks that confirm badges, cards, and empty-state copy still render when data changes.
+- Validate that the HTML shell contains the regions app.js expects so we avoid silent UI failures.
+Recommendations:
+- Add assertions around template output (badge class, event card markers, empty agenda text).
+- Keep tests flexible by searching for substrings rather than brittle full markup matches.
+- Include a check that insights rendering preserves highlight text for long-duration events.

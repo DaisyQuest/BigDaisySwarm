@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: ArchitectA
+Task: design web client architecture
+Context:
+- We need a crisp structure that keeps UI concerns decoupled from data normalization.
+- The client must remain portable between browser and Node for tests.
+Position:
+- Affirm the three-layer split (model/templates/controller) with explicit helper utilities.
+- Enforce deterministic colors and validation messages to mirror backend clarity.
+Recommendations:
+- Keep CalendarModel methods small (_parseDate, _withinRange) and make agenda grouping pure.
+- Avoid storing Date objects in state; persist ISO strings and derive presentation labels on demand.
+- Document storage adapter expectations (load/save) so future connectors stay compatible.

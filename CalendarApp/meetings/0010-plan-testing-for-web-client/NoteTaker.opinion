@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: NoteTaker
+Task: plan testing for web client
+Context:
+- Testing strategy must be comprehensive and browser-free.
+Position:
+- Team agrees to drive JS via Node, assert JSON outputs, and include shell-level checks.
+Recommendations:
+- Document the helper approach in tests and ensure future scenarios reuse it.
+- Keep this plan aligned with the final implementation and report coverage in the delivery note.

@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: NoteTaker
+Task: expand web client tests and azure deployment guidance
+Context:
+- The team wants to cover storage exception branches, range errors, and template info states, plus add Azure deployment guidance.
+Position:
+- Consensus: add defensive storage handling with warnings, expand Node tests, document Azure options.
+Recommendations:
+- Record steps for Static Web Apps and Storage static hosting; ensure tests capture new branches and warnings.
