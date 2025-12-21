@@ -537,8 +537,9 @@ class DSLExecutor:
             if "=" not in token:
                 raise CalendarError(f"Invalid token '{token}'. Expected key=value pairs")
             key, value = token.split("=", 1)
-            if key not in args:
-                args[key] = value
+            if key in args:
+                raise CalendarError(f"Duplicate argument '{key}'")
+            args[key] = value
         return args
 
     def _clean_value(self, value: str) -> str:

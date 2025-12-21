@@ -71,9 +71,7 @@ def main(argv: list[str] | None = None) -> None:
     known_subcommands = {"kickoff", "list", "latest"}
     subcommand_present = any(arg in known_subcommands for arg in argv)
     if not subcommand_present:
-        global_flags = [arg for arg in argv if arg == "--validate-config"]
-        remaining_args = [arg for arg in argv if arg not in global_flags]
-        argv = [*global_flags, "kickoff", *remaining_args]
+        argv = ["kickoff", *argv]
 
     parser = _build_parser()
     args = parser.parse_args(argv)
