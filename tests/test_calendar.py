@@ -10,11 +10,40 @@ from bigdaisyswarm.calendar import (
     Participant,
     ParticipantService,
 )
+from bigdaisyswarm.storage import CalendarStorage, InMemoryCalendarStorage
 
 
-def make_services():
-    calendar_service = CalendarService()
-    event_service = EventService(calendar_service)
+class DummyStorage(CalendarStorage):
+    def __init__(self) -> None:
+        self.calendars = {}
+        self.events = {}
+
+    def save_calendar(self, calendar: dict) -> None:
+        self.calendars[calendar["id"]] = dict(calendar)
+
+    def get_calendar(self, calendar_id: str):
+        return self.calendars.get(calendar_id)
+
+    def list_calendars(self, owner=None):
+        calendars = list(self.calendars.values())
+        if owner is None:
+            return calendars
+        return [calendar for calendar in calendars if owner in calendar.get("owners", [])]
+
+    def save_event(self, event):
+        self.events[event.id] = event
+
+    def get_event(self, event_id):
+        return self.events.get(event_id)
+
+    def list_events(self, calendar_id):
+        return [event for event in self.events.values() if event.calendar_id == calendar_id]
+
+
+def make_services(storage: CalendarStorage | None = None):
+    storage = storage or InMemoryCalendarStorage()
+    calendar_service = CalendarService(storage)
+    event_service = EventService(calendar_service, storage)
     participant_service = ParticipantService(event_service)
     calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"])
     return calendar_service, event_service, participant_service, calendar_id
@@ -22,7 +51,9 @@ def make_services():
 
 def test_create_and_list_calendar():
     calendar_service = CalendarService()
-    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"], description="Team calendar")
+    calendar_id = calendar_service.create_calendar(
+        "Work", owners=["alice@example.com"], description="Team calendar"
+    )
     calendars = calendar_service.list_calendars()
     assert calendars[0]["id"] == calendar_id
     assert calendars[0]["description"] == "Team calendar"
@@ -52,10 +83,19 @@ def test_create_event_validates_inputs():
         event_service.create_event(calendar_id, "Bad", naive_start, end, timezone="UTC")
 
     with pytest.raises(CalendarError):
-        event_service.create_event(calendar_id, "Bad", "not-a-datetime", end, timezone="UTC")  # type: ignore[arg-type]
+        event_service.create_event(
+            calendar_id, "Bad", "not-a-datetime", end, timezone="UTC"  # type: ignore[arg-type]
+        )
 
     with pytest.raises(CalendarError):
-        event_service.create_event(calendar_id, "Bad", start, end, timezone="UTC", metadata="metadata")  # type: ignore[arg-type]
+        event_service.create_event(
+            calendar_id,
+            "Bad",
+            start,
+            end,
+            timezone="UTC",
+            metadata="metadata",  # type: ignore[arg-type]
+        )
 
 
 def test_update_and_cancel_event():
@@ -109,6 +149,22 @@ def test_event_range_filtering():
 
     end_only = event_service.list_events(calendar_id, range_end=end - dt.timedelta(minutes=30))
     assert len(end_only) == 1
+
+
+def test_update_event_rejects_invalid_times_and_timezone():
+    _, event_service, _, calendar_id = make_services()
+    start = dt.datetime(2025, 1, 1, 10, 0, tzinfo=dt.timezone.utc)
+    end = dt.datetime(2025, 1, 1, 11, 0, tzinfo=dt.timezone.utc)
+    event_id = event_service.create_event(calendar_id, "Standup", start, end, timezone="UTC")
+
+    with pytest.raises(CalendarError):
+        event_service.update_event(event_id, start=end + dt.timedelta(hours=1))
+
+    with pytest.raises(CalendarError):
+        event_service.update_event(event_id, start=start.replace(tzinfo=None))
+
+    with pytest.raises(CalendarError):
+        event_service.update_event(event_id, timezone="")
 
 
 def test_cancel_and_reschedule_single_occurrence():
@@ -180,9 +236,7 @@ def test_participant_operations():
         participant_service.update_participant(event_id, "missing", response="accepted")
 
     with pytest.raises(CalendarError):
-        participant_service.add_participant(
-            event_id, Participant(id="bob", name="Bob", email="")
-        )
+        participant_service.add_participant(event_id, Participant(id="bob", name="Bob", email=""))
 
 
 def test_dsl_executor_success_and_errors():
@@ -193,7 +247,9 @@ def test_dsl_executor_success_and_errors():
     results = executor.execute(["CREATE_CALENDAR name=Work owners=alice@example.com,bob@example.com"])
     calendar_id = results[0].split()[1]
     event_result = executor.execute(
-        [f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"]
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
+        ]
     )
     assert event_result[0].startswith("EVENT")
 
@@ -278,6 +334,9 @@ def test_list_events_rejects_invalid_range():
 
     assert "range_start must be before range_end" in str(excinfo.value)
 
+    with pytest.raises(CalendarError):
+        event_service.list_events(calendar_id, range_start=start.replace(tzinfo=None))
+
 
 def test_dsl_executor_reports_parsing_errors():
     calendar_service = CalendarService()
@@ -285,7 +344,11 @@ def test_dsl_executor_reports_parsing_errors():
     executor = DSLExecutor(calendar_service, event_service)
 
     with pytest.raises(CalendarError) as excinfo:
-        executor.execute(["CREATE_EVENT calendar=missing title=Bad start=not-a-date end=2025-01-01T11:00Z timezone=UTC"])
+        executor.execute(
+            [
+                "CREATE_EVENT calendar=missing title=Bad start=not-a-date end=2025-01-01T11:00Z timezone=UTC"
+            ]
+        )
     assert "Line 1" in str(excinfo.value)
     assert "Invalid datetime format" in str(excinfo.value)
 
@@ -308,12 +371,16 @@ def test_dsl_executor_participant_commands():
     results = executor.execute(["CREATE_CALENDAR name=Work owners=alice@example.com"])
     calendar_id = results[0].split()[1]
     event_result = executor.execute(
-        [f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"]
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
+        ]
     )
     event_id = event_result[0].split()[1]
 
     add_result = executor.execute(
-        [f"ADD_PARTICIPANT event={event_id} participant=alice name=Alice email=alice@example.com response=accepted"]
+        [
+            f"ADD_PARTICIPANT event={event_id} participant=alice name=Alice email=alice@example.com response=accepted"
+        ]
     )
     assert add_result[0] == "PARTICIPANT alice ADDED"
 
@@ -322,9 +389,7 @@ def test_dsl_executor_participant_commands():
     )
     assert update_result[0] == "PARTICIPANT alice UPDATED"
 
-    remove_result = executor.execute(
-        [f"REMOVE_PARTICIPANT event={event_id} participant=alice"]
-    )
+    remove_result = executor.execute([f"REMOVE_PARTICIPANT event={event_id} participant=alice"])
     assert remove_result[0] == "PARTICIPANT alice REMOVED"
     assert "alice" not in event_service.list_events(calendar_id)[0].participants
 

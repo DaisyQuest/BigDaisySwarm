@@ -17,7 +17,10 @@ from .calendar import (
     Participant,
     ParticipantService,
 )
+from .storage import CalendarStorage, InMemoryCalendarStorage
+
 from .project import append_summary_update, create_meeting, record_summary_update, scaffold_project, write_team_config
+
 
 __all__ = [
     "AgentType",
@@ -38,4 +41,6 @@ __all__ = [
     "EventService",
     "Participant",
     "ParticipantService",
+    "CalendarStorage",
+    "InMemoryCalendarStorage",
 ]
