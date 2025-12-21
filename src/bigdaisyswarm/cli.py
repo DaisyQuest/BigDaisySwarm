@@ -32,6 +32,11 @@ def _kickoff_args(subparser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Compute the next meeting path without creating files",
     )
+    subparser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate teamconfig.json against the agent definitions without creating a meeting",
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
