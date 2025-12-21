@@ -1,0 +1,56 @@
+{
+  "Architect": {
+    "description": "Maintains the project spec and validates work against it.",
+    "parameters": {
+      "preferSimplicityLevel": {
+        "type": "double",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.5,
+        "description": "Higher values prioritize simple, maintainable solutions."
+      },
+      "preferHomebakedCodeLevel": {
+        "type": "double",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.5,
+        "description": "Higher values favor bespoke implementations over third-party libraries."
+      }
+    }
+  },
+  "Developer": {
+    "description": "Implements features to meet the specification and commits code.",
+    "parameters": {
+      "preferSimplicityLevel": {
+        "type": "double",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.5,
+        "description": "Higher values favor straightforward implementations."
+      },
+      "preferHomebakedCodeLevel": {
+        "type": "double",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.5,
+        "description": "Higher values favor custom code instead of external libraries."
+      }
+    }
+  },
+  "TestEngineer": {
+    "description": "Develops tests aiming for comprehensive coverage and recommends testability improvements.",
+    "parameters": {}
+  },
+  "Critic": {
+    "description": "Identifies risks, maintainability concerns, and potential flaws.",
+    "parameters": {}
+  },
+  "NoteTaker": {
+    "description": "Summarizes meetings and prepares reports for the Arbiter.",
+    "parameters": {}
+  },
+  "Arbiter": {
+    "description": "Reviews opinions and calls for next actions or resolutions.",
+    "parameters": {}
+  }
+}

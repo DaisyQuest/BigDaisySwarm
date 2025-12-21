@@ -1,0 +1,32 @@
+{
+  "agents": [
+    {
+      "id": "ArchitectA",
+      "type": "Architect",
+      "parameters": {
+        "preferSimplicityLevel": 0.6,
+        "preferHomebakedCodeLevel": 0.4
+      }
+    },
+    {
+      "id": "ArchitectB",
+      "type": "Architect",
+      "parameters": {
+        "preferSimplicityLevel": 0.3,
+        "preferHomebakedCodeLevel": 0.7
+      }
+    },
+    {
+      "id": "Developer",
+      "type": "Developer",
+      "parameters": {
+        "preferSimplicityLevel": 0.5,
+        "preferHomebakedCodeLevel": 0.5
+      }
+    },
+    { "id": "TestEngineer", "type": "TestEngineer", "parameters": {} },
+    { "id": "Critic", "type": "Critic", "parameters": {} },
+    { "id": "NoteTaker", "type": "NoteTaker", "parameters": {} },
+    { "id": "Arbiter", "type": "Arbiter", "parameters": {} }
+  ]
+}
