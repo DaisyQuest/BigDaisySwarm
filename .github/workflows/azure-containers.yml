@@ -17,9 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}                 # e.g. "myregistry" (NOT the full FQDN)
-      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }} # optional; will be overridden from Azure as source of truth
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: canadaeast
+      APP_SERVICE_PLAN: ${{ secrets.APP_SERVICE_PLAN }}
+
+      ACR_NAME: ${{ secrets.ACR_NAME }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
 
@@ -41,15 +44,13 @@ jobs:
           set -euo pipefail
           missing=0
 
-          # Validate env-backed values
-          for var in ACR_NAME AZURE_RESOURCE_GROUP WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
+          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP APP_SERVICE_PLAN ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
             if [ -z "${!var:-}" ]; then
               echo "::error title=Missing secret::${var} is required"
               missing=1
             fi
           done
 
-          # Validate admin-user secrets (must be done via env; you can't loop over secrets[] dynamically)
           if [ -z "${ACR_ADMINUSER:-}" ]; then
             echo "::error title=Missing secret::ACR_ADMINUSER is required"
             missing=1
@@ -62,6 +63,13 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
+
+      - name: Set subscription
+        shell: bash
+        run: |
+          set -euo pipefail
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          az account show -o table
 
       - name: Resolve ACR login server (source of truth) + mask
         shell: bash
@@ -98,7 +106,68 @@ jobs:
           push: true
           tags: ${{ env.ACR_LOGIN_SERVER }}/calendar-example:${{ env.IMAGE_TAG }}
 
-      - name: Deploy web client container
+      - name: Ensure resource group exists (Canada East)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            az group show -n "$AZURE_RESOURCE_GROUP" >/dev/null 2>&1 || \
+              az group create -n "$AZURE_RESOURCE_GROUP" -l "$AZURE_LOCATION" -o none
+
+      - name: Ensure App Service plan exists (Linux, Canada East)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+
+            if az appservice plan show -g "$AZURE_RESOURCE_GROUP" -n "$APP_SERVICE_PLAN" >/dev/null 2>&1; then
+              echo "App Service plan exists: $APP_SERVICE_PLAN"
+            else
+              # Adjust SKU as needed: B1 (cheaper), S1 (safer), P1v3 (production).
+              az appservice plan create \
+                -g "$AZURE_RESOURCE_GROUP" \
+                -n "$APP_SERVICE_PLAN" \
+                --is-linux \
+                --sku B1 \
+                -l "$AZURE_LOCATION" \
+                -o none
+              echo "Created App Service plan: $APP_SERVICE_PLAN"
+            fi
+
+      - name: Ensure web apps exist (Linux)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+
+            ensure_webapp () {
+              local APP_NAME="$1"
+
+              if az webapp show -g "$AZURE_RESOURCE_GROUP" -n "$APP_NAME" >/dev/null 2>&1; then
+                echo "Web app exists: $APP_NAME"
+              else
+                az webapp create \
+                  -g "$AZURE_RESOURCE_GROUP" \
+                  -p "$APP_SERVICE_PLAN" \
+                  -n "$APP_NAME" \
+                  --runtime "NODE|20-lts" \
+                  -o none
+
+                # Put the app into Linux container mode; actual image is set in the next steps.
+                az webapp config set \
+                  -g "$AZURE_RESOURCE_GROUP" \
+                  -n "$APP_NAME" \
+                  --linux-fx-version "DOCKER|${ACR_LOGIN_SERVER}/placeholder:latest" \
+                  -o none
+
+                echo "Created web app: $APP_NAME"
+              fi
+            }
+
+            ensure_webapp "$WEB_CLIENT_APP_NAME"
+            ensure_webapp "$EXAMPLE_SERVER_APP_NAME"
+
+      - name: Configure web client container + registry credentials
         uses: azure/cli@v2
         with:
           inlineScript: |
@@ -107,7 +176,10 @@ jobs:
             az webapp config container set \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --docker-custom-image-name "${ACR_LOGIN_SERVER}/calendar-web:${IMAGE_TAG}" \
+              --container-image-name "${ACR_LOGIN_SERVER}/calendar-web:${IMAGE_TAG}" \
+              --docker-registry-server-url "https://${ACR_LOGIN_SERVER}" \
+              --docker-registry-server-user "${{ secrets.ACR_ADMINUSER }}" \
+              --docker-registry-server-password "${{ secrets.ACR_PASSWORD }}" \
               --enable-app-service-storage false
 
             az webapp config appsettings set \
@@ -120,7 +192,7 @@ jobs:
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --set healthCheckPath="/healthz"
 
-      - name: Deploy example server container
+      - name: Configure example server container + registry credentials
         uses: azure/cli@v2
         with:
           inlineScript: |
@@ -129,7 +201,10 @@ jobs:
             az webapp config container set \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --docker-custom-image-name "${ACR_LOGIN_SERVER}/calendar-example:${IMAGE_TAG}" \
+              --container-image-name "${ACR_LOGIN_SERVER}/calendar-example:${IMAGE_TAG}" \
+              --docker-registry-server-url "https://${ACR_LOGIN_SERVER}" \
+              --docker-registry-server-user "${{ secrets.ACR_ADMINUSER }}" \
+              --docker-registry-server-password "${{ secrets.ACR_PASSWORD }}" \
               --enable-app-service-storage false
 
             az webapp config appsettings set \
