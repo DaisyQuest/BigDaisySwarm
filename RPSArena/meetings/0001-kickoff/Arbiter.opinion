@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: Arbiter
+Task: 
+Context:
+- Initial alignment for the RPS Arena project: standalone workspace, minimal deps, server-authoritative play, Mongo-backed data.
+
+Position:
+- Support the lightweight stack and insist on coverage and meeting hygiene to keep changes auditable.
+
+Recommendations:
+- Approve proceeding to feature build (meeting 0002) with the agreed architecture.
+- Require Mongo + Azure deployment planning alongside feature work to avoid drift.

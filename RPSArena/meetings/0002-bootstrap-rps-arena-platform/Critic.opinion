@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: Critic
+Task: bootstrap RPS Arena platform
+Context:
+- Delivering a new competitive RPS platform with server-authoritative play, Mongo backing, unlockables, and Azure deployment.
+- Architecture uses custom HTTP/router + bespoke matchmaking/validation; heavy reliance on in-memory defaults with Mongo as optional.
+
+Position:
+- The minimal dependency approach is good for control, but we must watch for missing ergonomics (auth/session handling, static asset caching, rate limiting).
+- Mongo path is stubbed; without live integration we risk late surprises around indexes, schema evolution, and concurrency.
+
+Recommendations:
+- Prioritize real Mongo smoke tests and ensure deployment secrets are wired before assuming CI/CD is production-ready.
+- Add input throttling and CSRF/tokenization for gameplay/match submissions; right now server trusts provided userId.
+- UX still rudimentary (manual playerId entry, no queue polling) — allocate time to harden flows before public launch.

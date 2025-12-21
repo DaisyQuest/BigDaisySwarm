@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: NoteTaker
+Task: 
+Context:
+- Kickoff for RPS Arena (Node + Mongo + HTML/JS) with classic/extreme modes, ranked/casual ladders, unlockables.
+
+Position:
+- Consensus: keep dependencies light, use server-authoritative validation, and follow meeting workflow.
+
+Recommendations:
+- Record outcomes/decisions in meeting summaries and carry forward into the first build meeting (0002).
+- Keep CI + coverage in scope as code lands.

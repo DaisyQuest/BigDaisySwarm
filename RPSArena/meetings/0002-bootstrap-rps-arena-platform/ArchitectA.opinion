@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: ArchitectA
+Task: bootstrap RPS Arena platform
+Context:
+- New standalone “RPS Arena” project using Node/HTML5 with classic/extreme modes, ranked/casual queues, unlockables, and MongoDB as the data store.
+- Requirements: avoid heavy dependencies, keep gameplay server-authoritative, ship Azure-ready CI/CD, and maintain full test coverage.
+
+Position:
+- Favor a lean, explicit service layer over heavy frameworks: Node HTTP server + small service modules + repository abstraction (in-memory + MongoDB).
+- Keep separation of concerns crisp (validation, game logic, matchmaking, persistence, presentation) to keep performance and auditability high.
+
+Recommendations:
+- Default to in-memory for dev/local UX, but keep Mongo repository first-class with a single entry point to swap storage without changing services.
+- Maintain pure, deterministic game/elo logic modules so we can reason about fairness and add new variants safely.
+- Preserve small dependency surface (only mongodb + c8) and continue expressing flows in plain JS modules for portability and ease of review.

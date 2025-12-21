@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0001-kickoff
+Agent: TestEngineer
+Task: 
+Context:
+- New project kickoff for RPS Arena; requirement to avoid technical debt and maintain full coverage.
+
+Position:
+- Testing should be built in from the start (node:test + coverage tooling) with deterministic in-memory options for workflows.
+
+Recommendations:
+- Add c8 coverage gating, exercise error cases (invalid inputs, queue collisions), and mirror any repo changes in tests immediately.
+- Plan for integration tests against the HTTP layer once endpoints exist.

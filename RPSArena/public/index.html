@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RPS Arena</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Ultra High Performance</p>
+        <h1>RPS Arena</h1>
+        <p class="subtitle">Classic & Extreme Rock Paper Scissors. Ranked and Casual. Server authoritative, no shenanigans.</p>
+        <div class="cta">
+          <button id="nav-register" class="primary">Register</button>
+          <button id="nav-home" class="ghost">Home</button>
+        </div>
+      </div>
+      <div class="hero-card">
+        <p class="badge">Azure-ready</p>
+        <p class="stat">ELO tuned</p>
+        <p class="stat">Unlockable throws</p>
+      </div>
+    </header>
+
+    <main>
+      <section id="registration" class="panel">
+        <h2>Create your competitor</h2>
+        <form id="registration-form" class="stack">
+          <label>Username <input name="username" required minlength="3" /></label>
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" required minlength="8" /></label>
+          <label>Avatar Color <input name="avatarColor" type="text" value="#6b5bff" required /></label>
+          <button type="submit" class="primary">Join the Arena</button>
+          <p class="form-feedback" id="registration-feedback"></p>
+        </form>
+      </section>
+
+      <section id="home" class="panel hidden">
+        <h2>Matchmaking Hub</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>News</h3>
+            <ul id="news-feed"></ul>
+          </div>
+          <div class="card">
+            <h3>Find a match</h3>
+            <form id="queue-form" class="stack">
+              <label>Player Id <input name="userId" required /></label>
+              <label>Mode
+                <select name="mode">
+                  <option value="classic">Classic</option>
+                  <option value="extreme">Extreme</option>
+                </select>
+              </label>
+              <label>Variant
+                <select name="variant">
+                  <option value="ranked">Ranked</option>
+                  <option value="casual">Casual</option>
+                </select>
+              </label>
+              <label>Rounds <input type="number" name="roundCount" min="1" value="3" /></label>
+              <button class="primary" type="submit">Queue me</button>
+              <p class="form-feedback" id="queue-feedback"></p>
+            </form>
+          </div>
+          <div class="card">
+            <h3>Top 100 ELO</h3>
+            <ol id="leaderboard"></ol>
+            <button id="view-all" class="ghost">View all</button>
+          </div>
+          <div class="card">
+            <h3>Highscores</h3>
+            <div class="row">
+              <label>Page <input type="number" id="highscore-page" value="1" min="1" /></label>
+              <label>Size <input type="number" id="highscore-size" value="10" min="1" max="100" /></label>
+              <button id="load-highscores" class="primary">Load</button>
+            </div>
+            <ol id="highscores"></ol>
+          </div>
+          <div class="card">
+            <h3>Edit Profile</h3>
+            <form id="avatar-form" class="stack">
+              <label>User Id <input name="userId" required /></label>
+              <label>Avatar Color <input name="avatarColor" value="#ff6f61" /></label>
+              <button class="primary" type="submit">Update Avatar</button>
+              <p class="form-feedback" id="avatar-feedback"></p>
+            </form>
+          </div>
+          <div class="card">
+            <h3>Match History</h3>
+            <div class="row">
+              <input id="history-user" placeholder="Player Id" />
+              <button id="load-history" class="ghost">Load</button>
+            </div>
+            <div id="match-history"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>RPS Arena — ultra slick RPS battles. Built for Azure, backed by MongoDB.</p>
+    </footer>
+    <script src="/public/main.js" type="module"></script>
+  </body>
+</html>

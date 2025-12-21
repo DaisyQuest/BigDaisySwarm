@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: ArchitectB
+Task: bootstrap RPS Arena platform
+Context:
+- Bootstrapping RPS Arena as a new project (separate from CalendarApp) with Node backend, MongoDB target, and stylized HTML5 front end.
+- Modes: classic/extreme; variants: ranked/casual; features: matchmaking, ELO leaderboard/highscores, unlockables, Azure deployment.
+
+Position:
+- Bias toward home-grown orchestration (custom router, matchmaking queue, validation) to keep latency predictable and avoid framework overhead.
+- Use repository abstraction to allow Mongo persistence while letting fast in-memory data power local dev and tests.
+
+Recommendations:
+- Keep a single domain model (users, matches, unlockables) flowing through services to avoid tight coupling between HTTP layer and storage.
+- Treat unlockables/achievements as first-class artifacts stored with users so content expansion is easy without schema churn.
+- Use GitHub Actions to enforce coverage and exercise the JS stack; future work can add health checks and Mongo migrations for Azure bootstraps.

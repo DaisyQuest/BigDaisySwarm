@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: Developer
+Task: bootstrap RPS Arena platform
+Context:
+- Implemented the RPS Arena stack: Node HTTP server with API routes, services for users/matches/unlockables, Mongo + in-memory stores, and stylized SPA front-end.
+- Added c8 + node:test suite hitting logic, storage, and workflow paths with 100% coverage, plus Azure-ready GitHub Actions.
+
+Position:
+- Chose plain http/file-serving for minimal deps; node:test + c8 for fast, deterministic coverage; PBKDF2 for password hashing without extra libs.
+- Front-end kept as vanilla HTML/CSS/JS (no build step) but organized for easy styling and API wiring.
+
+Recommendations:
+- Keep `npm test` as the contract (c8 --100 node --test). Add integration smoke tests once Mongo connectivity is configured.
+- When wiring real auth, extend the existing userService to issue tokens and attach to match submissions; keep validation centralized on the server.
+- Use the existing matchmaking API payloads from `public/main.js` as the contract for the UI; refine UI to poll queue + render match outcomes next.

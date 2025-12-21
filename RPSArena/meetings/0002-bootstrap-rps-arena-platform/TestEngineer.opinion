@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: TestEngineer
+Task: bootstrap RPS Arena platform
+Context:
+- Full node:test suite created for crypto, validation, game logic, services, and both storage backends; c8 enforces 100% coverage.
+- CI via GitHub Actions (Node 20) runs npm ci + npm test; repo-wide pytest also executed with PYTHONPATH=src:. after changes.
+
+Position:
+- Coverage-first approach is working: both happy paths and error paths (invalid inputs, missing users, mismatched rounds, Mongo factory defaults) are exercised.
+- In-memory store lets us avoid flaky external DB; MongoStore is tested with fakes and patched MongoClient to cover branch cases.
+
+Recommendations:
+- Keep adding targeted tests when new API endpoints or unlockable logic arrive; maintain c8 --100 threshold to prevent regressions.
+- Add integration tests that drive HTTP endpoints (with in-memory store) to validate request parsing and static asset serving.
+- When connecting to real Mongo, add smoke tests using test containers or a stubbed MongoClient to retain deterministic coverage.

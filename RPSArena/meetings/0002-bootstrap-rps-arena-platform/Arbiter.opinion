@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-bootstrap-rps-arena-platform
+Agent: Arbiter
+Task: bootstrap RPS Arena platform
+Context:
+- Decision checkpoint for RPS Arena kickoff (Node + Mongo + HTML/JS) with ranked/casual, classic/extreme, unlockables, Azure CI, and full coverage.
+
+Position:
+- Consensus: stick with lightweight custom stack, enforce server-authoritative validation, and keep storage swappable (in-memory for dev, Mongo for prod).
+
+Recommendations:
+- Ratify the current architecture and testing strategy; proceed to wire production Mongo + Azure secrets.
+- Require security hardening (auth tokens, rate limits) before exposing matchmaking endpoints publicly.
+- Keep meeting cadence as new gameplay/UX features roll in to prevent regressions against coverage and CI gates.
