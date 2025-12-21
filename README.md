@@ -9,6 +9,11 @@ Big Daisy Swarm coordinates multiple AI agents to design, implement, and govern 
 - `src/`: Python library that enforces the specification and helps scaffold project directories.
 - `tests/`: Automated tests that validate the implementation and configuration tooling.
 
+`spec/API_SURFACE.md` documents the backend API and DSL so client teams can build compatible transports without re-reading the source. Deployment and security guidance lives in `spec/DEPLOYMENT_SPEC.md`, `spec/DEPLOYMENT_GUIDE.md`, `spec/SECURITY_AND_IDENTITY.md`, and the production checklist in `spec/PRODUCTION_READINESS.md`, with Azure-first, low-complexity rollout steps, health-check wiring, and testing-surface expectations.
+
+Local smoke harness: `PYTHONPATH=src python -m bigdaisyswarm.smoke` generates a JSON report that mirrors the staging smoke tests in the production readiness checklist.
+Release verification harness: `PYTHONPATH=src python -m bigdaisyswarm.release --base-url https://<app>` asserts healthy `/healthz` and `/readyz` responses before slot swaps.
+
 Project-specific plans live under `spec/`, such as `spec/CALENDAR_APP.md` for the CalendarApp roadmap, backend API principles, and frontend delivery order. The `bigdaisyswarm.calendar` module implements an in-memory backend with Calendar, Event, Participant services, plus a lightweight DSL executor to script calendar operations.
 
 ## Development
