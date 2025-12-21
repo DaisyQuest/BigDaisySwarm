@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: ArchitectA
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Need static web client packaged for Azure while keeping the no-build posture.
+  - Require a lightweight, demo-friendly HTTP surface we can publish as a container with health probes.
+Position:
+  - Favor a minimal NGINX-based image for the static client with explicit `.mjs` MIME handling and a baked-in `/healthz`.
+  - The public example server should stay dependency-free, expose health plus DSL execution, and default to permissive CORS for browser demos.
+Recommendations:
+  - Publish the web client via `web_client/Dockerfile`, reusing the shared ACR + App Service pattern from the deployment guide.
+  - Keep the example server single-process (`python -m bigdaisyswarm.example_server`) with seed data, readiness wired to storage, and a `/dsl` endpoint for scripted interactions.
+  - Document Azure steps (ACR, App Service, health probe path) alongside the existing static hosting guidance so teams can choose static vs container hosting.
+  - Provide a GitHub Actions path that builds/pushes both containers and applies App Service settings from repository secrets without echoing credential material.

@@ -16,6 +16,11 @@ Release verification harness: `PYTHONPATH=src python -m bigdaisyswarm.release --
 
 Project-specific plans live under `spec/`, such as `spec/CALENDAR_APP.md` for the CalendarApp roadmap, backend API principles, and frontend delivery order. The `bigdaisyswarm.calendar` module implements an in-memory backend with Calendar, Event, Participant services, plus a lightweight DSL executor to script calendar operations.
 
+## Azure-ready examples
+- **Web client container**: `web_client/Dockerfile` packages the static HTML/JS client behind NGINX with a `/healthz` responder for Azure App Service health checks. See `web_client/DEPLOY_AZURE.md` (Option 3) for build and release steps.
+- **Example server container**: `example_server/Dockerfile` runs `python -m bigdaisyswarm.example_server`, exposing `/healthz`, `/readyz`, `/state`, and `/dsl` for a public demo. Deployment guidance lives in `example_server/DEPLOY_AZURE.md`.
+- **GitHub Actions deploy**: `.github/workflows/azure-containers.yml` builds and pushes both images to an Azure Container Registry, then updates the App Services using repository secrets (`AZURE_CREDENTIALS`, `ACR_NAME`, `ACR_LOGIN_SERVER`, `AZURE_RESOURCE_GROUP`, `WEB_CLIENT_APP_NAME`, `EXAMPLE_SERVER_APP_NAME`).
+
 ## Development
 Install dependencies and run the test suite:
 

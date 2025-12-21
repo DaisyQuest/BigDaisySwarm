@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: Critic
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Containers are demo-friendly but risk being mistaken for production-ready builds.
+  - Example server defaults to open CORS and seeded data; no auth layer is present.
+Position:
+  - Web client image is fine for static hosting, but ensure caching headers and CSP are reviewed before public launch.
+  - The example server must be clearly labeled as unauthenticated; Azure deployment steps should pair with network restrictions or auth if exposed publicly.
+  - GitHub Action deploy path must not over-permission the service principal or leak registry/app names; ensure health paths and ports match the container configs.
+Recommendations:
+  - Add follow-up to document hardening toggles (disable CORS, remove seeds) and note that the example server is not production-grade without OIDC.
+  - Monitor for configuration drift between NGINX health paths and App Service health probe settings to avoid false failures.
+  - Revisit pip install inside the server Dockerfile if dependencies grow; slim images should still include SBOM/provenance in the release pipeline.
+  - Consider restricting the deploy workflow to protected branches/environments and using slot-based rollout instead of direct production swaps.
