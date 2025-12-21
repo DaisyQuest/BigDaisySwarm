@@ -154,7 +154,8 @@ function prefillEventForm() {
   const start = new Date(now.getTime() + 60 * 60 * 1000);
   const end = new Date(start.getTime() + 45 * 60 * 1000);
   const pad = (value) => `${value}`.padStart(2, '0');
-  const toLocalInput = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const toLocalInput = (date) =>
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   const startInput = document.querySelector('#event-start');
   const endInput = document.querySelector('#event-end');
   startInput.value = toLocalInput(start);
