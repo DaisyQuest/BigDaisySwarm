@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0018-update-create-meeting-to-handle-existing-templates-and-add-tests
+Agent: ArchitectA
+Task: Update create_meeting to handle existing templates and add tests
+Context:
+- create_meeting currently skips updating preexisting template files, leaving Task blank when templates were created without a task.
+- Tests need to cover kickoff_task when summaries/opinions already exist with placeholder content.
+Position:
+- Use a narrowly scoped helper to detect placeholder Task lines and backfill the provided task without rewriting other fields.
+Recommendations:
+- Detect Task lines that have only whitespace/placeholder content and replace them in-place, preserving all other lines.
+- Extend kickoff_task tests with seeded templates to confirm task propagation and retention of custom notes.

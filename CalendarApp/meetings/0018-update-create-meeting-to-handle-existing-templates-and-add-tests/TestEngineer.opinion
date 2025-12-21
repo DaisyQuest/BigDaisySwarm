@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0018-update-create-meeting-to-handle-existing-templates-and-add-tests
+Agent: TestEngineer
+Task: Update create_meeting to handle existing templates and add tests
+Context:
+- Need coverage for kickoff_task when summary/opinion files already exist with empty Task placeholders.
+- Tests should verify both task insertion and preservation of other content.
+Position:
+- Seed a meeting directory with blank templates and a custom note, then assert kickoff_task fills in tasks without removing notes.
+Recommendations:
+- Import the template generator to create authentic summary scaffolding for the test.
+- Confirm the Task line appears exactly once after the update to avoid duplication.
+- Run the entire pytest suite with PYTHONPATH including both root and src to satisfy module imports.
