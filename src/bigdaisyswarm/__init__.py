@@ -33,6 +33,19 @@ from .publishing import PublishingChannel, PublishingPipeline, PublishingStage
 from .storage import CalendarStorage, InMemoryCalendarStorage
 
 
+from .project import (
+    append_summary_update,
+    create_meeting,
+    kickoff_task,
+    latest_meeting_path,
+    list_meetings,
+    plan_next_meeting,
+    record_summary_update,
+    scaffold_project,
+    validate_project_teamconfig,
+    write_team_config,
+)
+
 
 __all__ = [
     "AgentType",
@@ -48,6 +61,7 @@ __all__ = [
     "plan_next_meeting",
     "record_summary_update",
     "scaffold_project",
+    "validate_project_teamconfig",
     "validate_team_config",
     "write_team_config",
     "CalendarError",

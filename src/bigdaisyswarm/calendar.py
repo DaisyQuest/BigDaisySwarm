@@ -118,6 +118,14 @@ class Event:
             raise CalendarError(f"Conflicting override for {override.occurrence_date.isoformat()}")
         self.overrides[override.occurrence_date] = override
 
+    @property
+    def canceled_occurrences(self) -> set[dt.date]:
+        canceled = {date for date, override in self.overrides.items() if override.canceled}
+        if self.canceled:
+            canceled.add(self.start.date())
+        return canceled
+
+
 
 class CalendarService:
     def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
@@ -307,6 +315,18 @@ class DSLExecutor:
         self.calendar_service = calendar_service
         self.event_service = event_service
         self.participant_service = participant_service
+        self._COMMANDS = {
+            "CREATE_CALENDAR",
+            "LIST_CALENDARS",
+            "CREATE_EVENT",
+            "UPDATE_EVENT",
+            "CANCEL_EVENT",
+            "RESCHEDULE_EVENT",
+            "LIST_EVENTS",
+            "ADD_PARTICIPANT",
+            "UPDATE_PARTICIPANT",
+            "REMOVE_PARTICIPANT",
+        }
 
     def execute(self, lines: Iterable[str]) -> List[str]:
         results: List[str] = []
@@ -404,6 +424,8 @@ class DSLExecutor:
 
         if command == "RESCHEDULE_EVENT":
             self._validate_args(command, args, required={"event", "occurrence"}, optional={"start", "end"})
+            if "start" not in args or "end" not in args:
+                raise CalendarError("RESCHEDULE_EVENT start and end must be provided")
             event_id = args.get("event")
             _require(event_id, "event is required for RESCHEDULE_EVENT")
             _require("start" in args and "end" in args, "start and end must be provided")
@@ -470,6 +492,26 @@ class DSLExecutor:
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
+    def _parse_datetime(value: str, field_name: str) -> dt.datetime:
+        try:
+            parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception as exc:  # pragma: no cover - defensive
+            raise CalendarError(f"Invalid datetime format for {field_name}: {value}") from exc
+        if parsed.tzinfo is None:
+            raise CalendarError(f"Datetime values for {field_name} must include timezone info")
+        return parsed
+
+    @staticmethod
+    def _parse_date(value: str, field_name: str) -> dt.date:
+        try:
+            return dt.date.fromisoformat(value)
+        except Exception as exc:  # pragma: no cover - defensive
+            raise CalendarError(f"Invalid {field_name} date: Expected YYYY-MM-DD") from exc
+
+    @staticmethod
+    def _parse_metadata(raw: str) -> Dict[str, object]:
+        try:
+            parsed = json.loads(raw)
     def _tokenize(line: str) -> List[str]:
         try:
             return shlex.split(line)
