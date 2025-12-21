@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0013-expand-web-client-tests-and-azure-deployment-guidance
+Agent: ArchitectA
+Task: expand web client tests and azure deployment guidance
+Context:
+- Web client still needs coverage for storage exceptions and range filtering edge cases.
+- Deployment guidance to Azure should be lightweight and consistent with the dependency-free stance.
+Position:
+- Strengthen storage helpers with warnings and fallbacks; test get/set failures explicitly.
+- Provide concise Azure Static Web Apps and storage static site instructions to make deployment turnkey.
+Recommendations:
+- Add Node-based tests covering storage exceptions and template info states.
+- Add an Azure deployment doc referencing the existing `web_client/` assets without builds.

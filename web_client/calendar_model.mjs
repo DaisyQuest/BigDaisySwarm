@@ -56,11 +56,23 @@ export function createBrowserStorage(key = "calendarapp-web-state") {
     if (typeof localStorage !== "undefined") {
       return {
         load() {
-          const raw = localStorage.getItem(key);
-          return raw ? normalizeSnapshot(JSON.parse(raw)) : createEmptySnapshot();
+          try {
+            const raw = localStorage.getItem(key);
+            if (!raw) {
+              return createEmptySnapshot();
+            }
+            return normalizeSnapshot(JSON.parse(raw));
+          } catch (error) {
+            console.warn("Unable to parse stored calendar state, resetting to empty snapshot", error);
+            return createEmptySnapshot();
+          }
         },
         save(snapshot) {
-          localStorage.setItem(key, JSON.stringify(normalizeSnapshot(snapshot)));
+          try {
+            localStorage.setItem(key, JSON.stringify(normalizeSnapshot(snapshot)));
+          } catch (error) {
+            console.warn("Unable to persist calendar state to localStorage", error);
+          }
         },
       };
     }

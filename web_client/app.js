@@ -1,4 +1,5 @@
-import { CalendarModel, createBrowserStorage, createSeedData } from './calendar_model.mjs';
+import { CalendarModel, createSeedData } from './calendar_model.mjs';
+import { createStorageFromConfig, resolveConfig } from './config.mjs';
 import { renderAgenda, renderCalendarList, renderInsights, renderStatus } from './ui_templates.mjs';
 
 const state = {
@@ -7,7 +8,9 @@ const state = {
   rangeEnd: null,
 };
 
-const model = new CalendarModel({ storage: createBrowserStorage() });
+const clientConfig = resolveConfig();
+const storage = createStorageFromConfig(clientConfig);
+const model = new CalendarModel({ storage });
 
 function ensureSeeds() {
   if (model.listCalendars().length === 0) {
@@ -26,8 +29,18 @@ function wireControls() {
   const calendarForm = document.querySelector('#calendar-form');
   const eventForm = document.querySelector('#event-form');
 
+  function describeSyncMode() {
+    if (clientConfig.syncEnabled && clientConfig.remoteAdapter) {
+      return `Sync: Remote (${clientConfig.apiBaseUrl || 'custom adapter'})`;
+    }
+    if (clientConfig.syncEnabled && !clientConfig.remoteAdapter) {
+      return 'Sync: Local (remote adapter missing)';
+    }
+    return 'Sync: Local only';
+  }
+
   function refreshStatus(message, tone = 'info') {
-    statusRegion.innerHTML = renderStatus(message, tone);
+    statusRegion.innerHTML = renderStatus(`${message} · ${describeSyncMode()}`, tone);
   }
 
   function syncCalendarSelect(calendars) {
@@ -141,7 +154,8 @@ function prefillEventForm() {
   const start = new Date(now.getTime() + 60 * 60 * 1000);
   const end = new Date(start.getTime() + 45 * 60 * 1000);
   const pad = (value) => `${value}`.padStart(2, '0');
-  const toLocalInput = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const toLocalInput = (date) =>
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   const startInput = document.querySelector('#event-start');
   const endInput = document.querySelector('#event-end');
   startInput.value = toLocalInput(start);

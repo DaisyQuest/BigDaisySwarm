@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: ArchitectA
+Task: configure web client sync toggle and clarify deployment
+Context:
+- We need a configurable sync toggle and deployment clarity while staying dependency-free.
+Position:
+- Add a dedicated config module that merges defaults with a global object and yields the appropriate storage.
+- Surface sync mode in the UI to avoid ambiguity.
+Recommendations:
+- Require remote adapters to be pluggable load/save functions; fall back to local storage with warnings on failures.
+- Document Azure deployment plus config setup so publishing remains trivial.

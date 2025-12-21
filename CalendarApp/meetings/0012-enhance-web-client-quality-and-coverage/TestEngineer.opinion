@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0012-enhance-web-client-quality-and-coverage
+Agent: TestEngineer
+Task: enhance web client quality and coverage
+Context:
+- Coverage gaps: rangeStart type errors, corrupted localStorage payloads, info-toned status rendering.
+- Prior work already covers normalization and insights; need to hit remaining branches.
+Position:
+- Use Node scripts to assert warnings and resets when localStorage is invalid.
+- Validate range filtering excludes out-of-window events and throws on bad types.
+Recommendations:
+- Extend tests for template info states and storage corruption handling.
+- Keep tests JSON-driven to avoid brittle string parsing; rerun full pytest after updates.

@@ -538,7 +538,7 @@ class DSLExecutor:
                 raise CalendarError(f"Invalid token '{token}'. Expected key=value pairs")
             key, value = token.split("=", 1)
             if key in args:
-                raise CalendarError(f"Duplicate argument '{key}'")
+                raise CalendarError(f"Duplicate argument for {key}")
             args[key] = value
         return args
 

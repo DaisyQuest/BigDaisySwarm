@@ -198,6 +198,131 @@ console.log(JSON.stringify({{
     assert result["stored"] is True
 
 
+def test_create_browser_storage_handles_invalid_payload():
+    script = f"""
+import {{ createBrowserStorage }} from 'file://{CALENDAR_MODEL.as_posix()}';
+let warned = false;
+globalThis.localStorage = {{
+  store: new Map([['demo-key', 'not-json']]),
+  getItem(key) {{ return this.store.has(key) ? this.store.get(key) : null; }},
+  setItem(key, value) {{ this.store.set(key, value); }},
+}};
+const originalWarn = console.warn;
+console.warn = () => {{ warned = true; }};
+const storage = createBrowserStorage('demo-key');
+const loaded = storage.load();
+console.warn = originalWarn;
+console.log(JSON.stringify({{
+  warned,
+  calendars: loaded.calendars.length,
+  events: loaded.events.length
+}}));
+"""
+    result = run_node_json(script)
+    assert result["warned"] is True
+    assert result["calendars"] == 0
+    assert result["events"] == 0
+
+
+def test_create_browser_storage_handles_exceptions():
+    script = f"""
+import {{ createBrowserStorage }} from 'file://{CALENDAR_MODEL.as_posix()}';
+let warnings = [];
+globalThis.localStorage = {{
+  getItem(key) {{ throw new Error('boom'); }},
+  setItem(key, value) {{ throw new Error('persist'); }},
+}};
+const originalWarn = console.warn;
+console.warn = (...args) => {{ warnings.push(args[0]); }};
+const storage = createBrowserStorage('demo-key');
+const loaded = storage.load();
+storage.save({{ calendars: [], events: [] }});
+console.warn = originalWarn;
+console.log(JSON.stringify({{
+  warnings,
+  calendars: loaded.calendars.length,
+  events: loaded.events.length
+}}));
+"""
+    result = run_node_json(script)
+    assert result["calendars"] == 0
+    assert result["events"] == 0
+    assert any("Unable to parse stored calendar state" in warning for warning in result["warnings"])
+    assert any("Unable to persist calendar state" in warning for warning in result["warnings"])
+
+
+def test_calendar_model_range_filters_and_errors():
+    script = f"""
+import {{ CalendarModel, MemoryStorage }} from 'file://{CALENDAR_MODEL.as_posix()}';
+const model = new CalendarModel({{ storage: new MemoryStorage() }});
+const calendarId = model.createCalendar({{ name: 'Range', owners: ['ops@example.com'] }});
+model.addEvent(calendarId, {{
+  title: 'Inside',
+  start: '2025-06-01T10:00:00Z',
+  end: '2025-06-01T11:00:00Z'
+}});
+model.addEvent(calendarId, {{
+  title: 'Outside',
+  start: '2025-07-01T10:00:00Z',
+  end: '2025-07-01T11:00:00Z'
+}});
+let error = '';
+try {{
+  model.listEvents(calendarId, {{ rangeStart: 42 }});
+}} catch (err) {{
+  error = err.message;
+}}
+const ranged = model.listEvents(calendarId, {{
+  rangeStart: '2025-06-01T00:00:00Z',
+  rangeEnd: '2025-06-15T00:00:00Z'
+}});
+console.log(JSON.stringify({{
+  count: ranged.length,
+  title: ranged[0].title,
+  error,
+}}));
+"""
+    result = run_node_json(script)
+    assert result["count"] == 1
+    assert result["title"] == "Inside"
+    assert "rangeStart must be a date or ISO string" in result["error"]
+
+
+def test_configurable_storage_supports_remote_adapter_and_fallback():
+    script = f"""
+import {{ mergeConfig, createStorageFromConfig, resolveConfig }} from 'file://{WEB_ROOT.joinpath("config.mjs").as_posix()}';
+let remoteLoadOk = true;
+const snapshots = {{
+  remote: {{ calendars: [{{ id: 'remote', name: 'Remote' }}], events: [] }},
+  local: {{ calendars: [{{ id: 'local', name: 'Local' }}], events: [] }},
+}};
+const remoteAdapter = {{
+  load() {{
+    if (!remoteLoadOk) throw new Error('remote down');
+    return snapshots.remote;
+  }},
+  save() {{
+    throw new Error('save failed');
+  }},
+}};
+const logger = {{ warnings: [], warn(msg) {{ this.warnings.push(msg); }} }};
+const storage = createStorageFromConfig(mergeConfig({{ syncEnabled: true, remoteAdapter, useLocalStorage: false }}), {{ logger }});
+storage.save(snapshots.local);
+remoteLoadOk = false;
+const loaded = storage.load();
+console.log(JSON.stringify({{
+  loaded,
+  warnings: logger.warnings,
+  resolvedSync: resolveConfig({{ syncEnabled: true }}).syncEnabled
+}}));
+"""
+    result = run_node_json(script)
+    assert result["loaded"]["calendars"][0]["id"] == "local"
+    assert any("Remote save failed" in warning for warning in result["warnings"])
+    assert any("Remote load failed" in warning for warning in result["warnings"])
+    assert result["resolvedSync"] is True
+
+
 def test_ui_templates_and_shell():
     script = f"""
 import {{ renderAgenda, renderCalendarList, renderInsights, renderStatus }} from 'file://{UI_TEMPLATES.as_posix()}';
@@ -206,6 +331,7 @@ const agendaFilled = renderAgenda([{{ date: '2025-02-01', events: [{{ title: 'De
 const calendars = renderCalendarList([{{ id: 'cal-A', name: 'Studio', owners: ['ops@example.com'], description: 'Delivery' }}], 'cal-A');
 const insights = renderInsights({{ calendarCount: 2, eventCount: 4, totalDurationMinutes: 90, spanDays: 3, highlight: 'Pitch' }});
 const status = renderStatus('Oops', 'error');
+const statusInfo = renderStatus('Ready', 'info');
 console.log(JSON.stringify({{
   emptyLine: agendaEmpty.includes('No events in view'),
   emptyCalendars: renderCalendarList([]).includes('No calendars yet'),
@@ -213,6 +339,7 @@ console.log(JSON.stringify({{
   highlightPresent: insights.includes('Pitch'),
   agendaCard: agendaFilled.includes('Design Clinic') && agendaFilled.includes('Loft'),
   statusTone: status.includes('error'),
+  statusInfo: statusInfo.includes('status info'),
 }}));
 """
     result = run_node_json(script)
@@ -222,6 +349,7 @@ console.log(JSON.stringify({{
     assert result["highlightPresent"] is True
     assert result["agendaCard"] is True
     assert result["statusTone"] is True
+    assert result["statusInfo"] is True
 
 
 def test_index_shell_contains_regions():

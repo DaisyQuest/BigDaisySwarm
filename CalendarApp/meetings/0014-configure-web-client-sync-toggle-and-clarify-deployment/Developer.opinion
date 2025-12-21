@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0014-configure-web-client-sync-toggle-and-clarify-deployment
+Agent: Developer
+Task: configure web client sync toggle and clarify deployment
+Context:
+- Need runtime configurability for remote sync and clear Azure deployment steps.
+Position:
+- Build `config.mjs` to merge defaults with `window.__CALENDAR_APP_CONFIG__` and create storage based on sync settings.
+- Keep local-first behavior with warnings and clear status text.
+Recommendations:
+- Add tests for remote adapter selection, fallback warnings, and config resolution.
+- Update deployment docs to include the config hook and keep the static publishing story straightforward.

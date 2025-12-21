@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0012-enhance-web-client-quality-and-coverage
+Agent: Developer
+Task: enhance web client quality and coverage
+Context:
+- Need to shore up storage parsing, range error handling, and template states without adding dependencies.
+- Tests should exercise every branch we introduce.
+Position:
+- Implement guarded parsing in createBrowserStorage with warnings and empty snapshot resets.
+- Add Node-driven tests for range filters, corrupted storage, and info-status rendering.
+Recommendations:
+- Keep calendar_model expressive with deterministic helpers; avoid duplicating logic.
+- After changes, run `PYTHONPATH=.:src pytest --maxfail=1` and update PR notes accordingly.
