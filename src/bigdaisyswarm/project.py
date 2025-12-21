@@ -12,6 +12,20 @@ from .agents import AgentType, default_agent_types, default_team_config, validat
 DEFAULT_MEETING_ID = "0001-kickoff"
 
 
+def _initial_summary_content(meeting_id: str, task: str | None = None) -> str:
+    return (
+        "# Meeting Summary\n\n"
+        f"Meeting: {meeting_id}\n"
+        f"Task: {task or ''}\n\n"
+        "## Outcomes\n"
+        "- \n\n"
+        "## Decisions\n"
+        "- \n\n"
+        "## Next steps\n"
+        "- \n"
+    )
+
+
 def _project_agents_content(project_name: str) -> str:
     return textwrap.dedent(
         f"""
@@ -90,18 +104,7 @@ def create_meeting(opinion_root: Path, meeting_id: str, agent_ids: Sequence[str]
 
     summary_file = meeting_path / "summary.md"
     if not summary_file.exists():
-        summary_file.write_text(
-            "# Meeting Summary\n\n"
-            f"Meeting: {meeting_id}\n"
-            f"Task: {task or ''}\n\n"
-            "## Outcomes\n"
-            "- \n\n"
-            "## Decisions\n"
-            "- \n\n"
-            "## Next steps\n"
-            "- \n",
-            encoding="utf-8",
-        )
+        summary_file.write_text(_initial_summary_content(meeting_id, task), encoding="utf-8")
 
     for agent_id in agent_ids:
         opinion_file = meeting_path / f"{agent_id}.opinion"
@@ -118,6 +121,80 @@ def create_meeting(opinion_root: Path, meeting_id: str, agent_ids: Sequence[str]
             )
 
     return meeting_path
+
+
+def _find_section(lines: list[str], header: str) -> tuple[int | None, int]:
+    """Return the start and end indices (end exclusive) for a section."""
+    header_line = f"## {header}"
+    start_index: int | None = None
+    for idx, line in enumerate(lines):
+        if line.strip() == header_line:
+            start_index = idx
+            break
+
+    if start_index is None:
+        return None, len(lines)
+
+    end_index = start_index + 1
+    while end_index < len(lines) and not lines[end_index].lstrip().startswith("## "):
+        end_index += 1
+    return start_index, end_index
+
+
+def _append_section_entries(lines: list[str], header: str, entries: Sequence[str]) -> list[str]:
+    if not entries:
+        return lines
+
+    start, end = _find_section(lines, header)
+    if start is None:
+        if lines and not lines[-1].endswith("\n"):
+            lines.append("\n")
+        start = len(lines)
+        lines.extend(
+            [
+                f"## {header}\n",
+                "- \n",
+                "\n",
+            ]
+        )
+        end = len(lines)
+
+    insert_at = end
+    while insert_at > start + 1 and lines[insert_at - 1].strip() == "":
+        insert_at -= 1
+
+    new_lines = lines[:insert_at]
+    for entry in entries:
+        new_lines.append(f"- {entry}\n")
+    new_lines.extend(lines[insert_at:])
+    return new_lines
+
+
+def append_summary_update(
+    meeting_path: Path,
+    *,
+    outcomes: Sequence[str] | None = None,
+    decisions: Sequence[str] | None = None,
+    next_steps: Sequence[str] | None = None,
+    task: str | None = None,
+) -> Path:
+    """Append summary updates without overwriting existing content."""
+    outcomes = list(outcomes or [])
+    decisions = list(decisions or [])
+    next_steps = list(next_steps or [])
+
+    summary_path = meeting_path / "summary.md"
+    if not summary_path.exists():
+        summary_path.write_text(_initial_summary_content(meeting_path.name, task), encoding="utf-8")
+
+    content = summary_path.read_text(encoding="utf-8")
+    lines = content.splitlines(keepends=True)
+    updated_lines = _append_section_entries(lines, "Outcomes", outcomes)
+    updated_lines = _append_section_entries(updated_lines, "Decisions", decisions)
+    updated_lines = _append_section_entries(updated_lines, "Next steps", next_steps)
+
+    summary_path.write_text("".join(updated_lines), encoding="utf-8")
+    return summary_path
 
 
 def scaffold_project(
@@ -168,3 +245,26 @@ def kickoff_task(project_root: Path, task: str, meeting_id: str | None = None) -
     meeting_identifier = meeting_id or next_meeting_id(opinion_root, slug=slug)
 
     return create_meeting(opinion_root, meeting_identifier, agent_ids, task=task)
+
+
+def record_summary_update(
+    project_root: Path,
+    meeting_id: str,
+    *,
+    outcomes: Sequence[str] | None = None,
+    decisions: Sequence[str] | None = None,
+    next_steps: Sequence[str] | None = None,
+    task: str | None = None,
+) -> Path:
+    """Record summary updates for a meeting without overwriting existing content."""
+    meeting_path = project_root / "meetings" / meeting_id
+    if not meeting_path.is_dir():
+        raise ValueError(f"Meeting folder not found: {meeting_path}")
+
+    return append_summary_update(
+        meeting_path,
+        outcomes=outcomes,
+        decisions=decisions,
+        next_steps=next_steps,
+        task=task,
+    )
