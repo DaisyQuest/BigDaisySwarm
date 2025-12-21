@@ -425,6 +425,22 @@ def test_dsl_executor_reports_parsing_errors():
         executor.execute(['CREATE_CALENDAR name="Missing end quote owners=alice@example.com'])
     assert "Unable to parse line" in str(excinfo.value)
 
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Meta start=2025-03-01T10:00Z end=2025-03-01T11:00Z timezone=UTC metadata=not-json"
+            ]
+        )
+    assert "metadata must be valid JSON object" in str(excinfo.value)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Meta start=2025-03-02T10:00Z end=2025-03-02T11:00Z timezone=UTC metadata=[]"
+            ]
+        )
+    assert "metadata must be a JSON object mapping keys to values" in str(excinfo.value)
+
 
 def test_dsl_executor_participant_commands():
     calendar_service = CalendarService()

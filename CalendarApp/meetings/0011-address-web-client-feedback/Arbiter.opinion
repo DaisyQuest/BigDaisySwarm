@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: Arbiter
+Task: address web client feedback
+Context:
+- Architects and Developer aligned on removing duplicate helpers and deepening tests; Critic flagged storage and empty-state risks.
+Position:
+- Approve consolidating DSLExecutor helpers and expanding Node-driven coverage for normalization, insights, and storage.
+Recommendations:
+- Proceed with refactor + tests, keep dependency-free stance, and rerun full pytest with maxfail guard.
+- Update PR notes with the added coverage and clarified helper semantics.

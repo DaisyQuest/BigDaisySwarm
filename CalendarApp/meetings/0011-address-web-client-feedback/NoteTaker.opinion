@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: NoteTaker
+Task: address web client feedback
+Context:
+- Team wants to clean up duplicated DSL helpers and strengthen JS coverage (normalization, insights, storage, empty states).
+Position:
+- Consensus: keep strict helpers, expand Node-based tests, stay dependency-free.
+Recommendations:
+- Record the agreed refactors and new tests; confirm full pytest run post-change.
+- Ensure summary highlights the validation, palette, and storage coverage improvements.

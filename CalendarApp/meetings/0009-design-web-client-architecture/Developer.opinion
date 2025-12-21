@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: Developer
+Task: design web client architecture
+Context:
+- Implementation needs to stay small and dependency-free while being testable via Node.
+- The controller should assume only basic DOM APIs and form submissions.
+Position:
+- Create calendar_model.mjs with normalization helpers, deterministic palette, and agenda/insight utilities.
+- Build ui_templates.mjs as a pure string renderer; avoid coupling to document APIs.
+Recommendations:
+- Let app.js focus on wiring: seed data, attach listeners, sync selects, and push status messages.
+- Store ISO strings in the model; use datetime-local inputs for UX friendliness.
+- Ensure every mutation goes through the model so tests can assert state and storage calls.

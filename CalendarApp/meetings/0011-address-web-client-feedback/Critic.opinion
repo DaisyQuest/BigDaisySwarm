@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: Critic
+Task: address web client feedback
+Context:
+- Duplicate helper definitions imply maintenance debt and potential divergence in error handling.
+- Web client lacks coverage for empty states and storage behavior, risking regressions.
+Position:
+- Push for a single, strict helper set with descriptive errors and remove unused code.
+- Demand tests that prove storage paths (memory + localStorage) and UI empty states.
+Recommendations:
+- Eliminate duplicate DSLExecutor helpers and assert metadata parsing failures in tests.
+- Validate palette determinism and insights math to avoid subtle user-facing inconsistencies.
+- Keep notes updated so future contributors see the resolved concerns.

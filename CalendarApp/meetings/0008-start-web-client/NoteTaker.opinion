@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: NoteTaker
+Task: start web client
+Context:
+- Team aligned on shipping a dependency-free HTML + JS client with seeded data and modular structure.
+Position:
+- Consensus favors clear separation: model (data + validation), templates (markup), controller (events + wiring).
+Recommendations:
+- Capture decisions in the summary and ensure follow-on meetings review architecture and test depth.
+- Keep meeting artifacts synchronized with the actual implementation checkpoints.

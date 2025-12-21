@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calendar Web Client · Big Daisy Swarm</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">CalendarApp · HTML + JS</p>
+        <h1>Beautifully abstract scheduling in a single page.</h1>
+        <p class="lede">
+          Model calendars, add expressive events, and survey the agenda with vivid, minimalist tiles.
+        </p>
+      </div>
+      <div class="status-area" data-region="status">
+        <div class="status info">Loading the timeline.</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Calendars</h2>
+        <p>Choose a calendar to focus the agenda or spin up a new ritual lane.</p>
+        <div class="calendar-panel" data-region="calendars"></div>
+        <form id="calendar-form" class="form">
+          <div class="form-grid">
+            <label>
+              Name
+              <input name="name" type="text" placeholder="Design cadence" required />
+            </label>
+            <label>
+              Owners (comma separated)
+              <input name="owners" type="text" placeholder="team@example.com, coach@example.com" required />
+            </label>
+          </div>
+          <label>
+            Description
+            <input name="description" type="text" placeholder="What vibe does this calendar hold?" />
+          </label>
+          <button type="submit">Create calendar</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Events</h2>
+        <p>Layer in intentional time blocks with clean metadata.</p>
+        <div class="filters">
+          <label>
+            Calendar focus
+            <select id="calendar-select"></select>
+          </label>
+          <label>
+            Range start
+            <input id="range-start" type="datetime-local" />
+          </label>
+          <label>
+            Range end
+            <input id="range-end" type="datetime-local" />
+          </label>
+        </div>
+        <form id="event-form" class="form">
+          <div class="form-grid">
+            <label>
+              Title
+              <input name="title" type="text" placeholder="Workshop" required />
+            </label>
+            <label>
+              Timezone
+              <input name="timezone" type="text" placeholder="UTC" />
+            </label>
+          </div>
+          <div class="form-grid">
+            <label>
+              Start
+              <input id="event-start" name="start" type="datetime-local" required />
+            </label>
+            <label>
+              End
+              <input id="event-end" name="end" type="datetime-local" required />
+            </label>
+          </div>
+          <label>
+            Location
+            <input name="location" type="text" placeholder="Studio, online, or a vibey nook" />
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="2" placeholder="What story does this event tell?" ></textarea>
+          </label>
+          <label>
+            Tags
+            <input name="tags" type="text" placeholder="ritual, sync" />
+          </label>
+          <button type="submit">Add event</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Agenda</h2>
+        <div data-region="agenda" class="agenda"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Insights</h2>
+        <div data-region="insights"></div>
+      </section>
+    </main>
+
+    <noscript>
+      <p class="status error">This client relies on JavaScript to orchestrate calendars.</p>
+    </noscript>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

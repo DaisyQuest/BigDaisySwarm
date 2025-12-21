@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: ArchitectB
+Task: address web client feedback
+Context:
+- Frontend aesthetics landed, but reliability hinges on consistent helpers and storage paths.
+- Feedback highlights ambiguity from duplicated DSL helpers and missing UI empty-state checks.
+Position:
+- Favor a single, well-documented helper set with expressive errors; ambiguity undermines trust.
+- Strengthen tests around color determinism, highlight insights, and localStorage persistence to protect the visual narrative.
+Recommendations:
+- Prune duplicate DSLExecutor methods and keep the version that enforces metadata object shape.
+- Extend Node-driven tests to cover empty calendar copy, palette stability across events, and storage with simulated localStorage.
+- Keep the UI dependency-free but consider documenting helper expectations for future styling iterations.

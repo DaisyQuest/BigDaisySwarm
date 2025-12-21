@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: ArchitectA
+Task: plan testing for web client
+Context:
+- JS modules must stay aligned with backend semantics; tests are our safety net.
+Position:
+- Prioritize validation and normalization checks in tests to prevent drift from the Python behaviors.
+- Cover agenda grouping and insights calculations because they drive UI correctness.
+Recommendations:
+- Include tests that ensure ISO parsing rejects bad inputs and that range validation errors are explicit.
+- Assert deterministic colors/time labels to catch regressions in formatting helpers.
+- Keep tests free of browser dependencies; rely on Node + string templates instead.

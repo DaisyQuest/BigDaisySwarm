@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: Arbiter
+Task: plan testing for web client
+Context:
+- Testing approach is defined; risks identified by Critic are acknowledged.
+Position:
+- Approve moving into implementation with the agreed coverage goals and Node harness.
+Recommendations:
+- Block completion until the new tests assert validation errors, empty states, insights, and DOM hooks.
+- Run full pytest with --maxfail=1 before delivery as per repo policy.
