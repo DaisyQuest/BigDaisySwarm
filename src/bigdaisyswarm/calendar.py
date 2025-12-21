@@ -111,6 +111,11 @@ class Event:
             raise CalendarError(f"Conflicting override for {override.occurrence_date.isoformat()}")
         self.overrides[override.occurrence_date] = override
 
+    @property
+    def canceled_occurrences(self) -> List[dt.date]:
+        """List of dates that have been explicitly canceled."""
+        return [date for date, override in self.overrides.items() if override.canceled]
+
 
 class CalendarService:
     def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
@@ -462,4 +467,92 @@ class DSLExecutor:
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
-    def _par_
+    def _parse_datetime(value: object, field_name: str) -> dt.datetime:
+        if isinstance(value, dt.datetime):
+            return _normalize_datetime(value)
+        if not isinstance(value, str):
+            raise CalendarError(f"Invalid datetime format for {field_name}: {value!r}")
+        normalized_value = value.replace("Z", "+00:00")
+        try:
+            parsed = dt.datetime.fromisoformat(normalized_value)
+        except ValueError as exc:
+            raise CalendarError(f"Invalid datetime format for {field_name}: {value}") from exc
+        if parsed.tzinfo is None:
+            raise CalendarError(f"Invalid datetime format for {field_name}: timezone information required")
+        return parsed.astimezone(dt.timezone.utc)
+
+    @staticmethod
+    def _parse_date(value: object, field_name: str) -> dt.date:
+        if isinstance(value, dt.date) and not isinstance(value, dt.datetime):
+            return value
+        if not isinstance(value, str):
+            raise CalendarError(f"Invalid {field_name} date {value!r}: Expected YYYY-MM-DD")
+        try:
+            return dt.datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise CalendarError(f"Invalid {field_name} date '{value}': Expected YYYY-MM-DD") from exc
+
+    @staticmethod
+    def _split_list(raw: str) -> List[str]:
+        return [item for item in raw.split(",") if item]
+
+    def _parse_metadata(self, raw: Optional[str]) -> Dict[str, object]:
+        if raw is None:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise CalendarError(f"metadata must be valid JSON object: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise CalendarError("metadata must be a JSON object mapping keys to values")
+        return parsed
+
+    def _parse_args(self, tokens: List[str]) -> Dict[str, str]:
+        args: Dict[str, str] = {}
+        for token in tokens:
+            if "=" not in token:
+                raise CalendarError(f"Invalid token '{token}': expected key=value")
+            key, value = token.split("=", 1)
+            _require(key, "argument name cannot be empty")
+            if key in args:
+                raise CalendarError(f"Duplicate argument: {key}")
+            args[key] = value
+        return args
+
+    def _validate_args(self, command: str, args: Dict[str, str], required: set[str], optional: set[str]) -> None:
+        missing = required.difference(args.keys())
+        if missing:
+            if command == "RESCHEDULE_EVENT" and ("start" in missing or "end" in missing):
+                raise CalendarError("RESCHEDULE_EVENT start and end must be provided")
+            raise CalendarError(f"{command} missing required arguments: {', '.join(sorted(missing))}")
+
+        unknown = set(args.keys()) - required - optional
+        if unknown:
+            raise CalendarError(f"{command} has unknown arguments: {', '.join(sorted(unknown))}")
+
+    def _require_participant_service(self) -> ParticipantService:
+        if self.participant_service is None:
+            raise CalendarError("Participant service is not configured")
+        return self.participant_service
+
+    def _tokenize(self, line: str) -> List[str]:
+        try:
+            tokens = shlex.split(line)
+        except ValueError as exc:
+            raise CalendarError(f"Unable to parse line: {exc}") from exc
+        return tokens
+
+    def _unknown_command_message(self, command: str) -> str:
+        known = [
+            "CREATE_CALENDAR",
+            "LIST_CALENDARS",
+            "CREATE_EVENT",
+            "UPDATE_EVENT",
+            "CANCEL_EVENT",
+            "RESCHEDULE_EVENT",
+            "LIST_EVENTS",
+            "ADD_PARTICIPANT",
+            "UPDATE_PARTICIPANT",
+            "REMOVE_PARTICIPANT",
+        ]
+        return f"Unknown command '{command}'. Supported commands: {', '.join(known)}"

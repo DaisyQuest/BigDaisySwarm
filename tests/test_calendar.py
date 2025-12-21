@@ -261,11 +261,7 @@ def test_dsl_executor_success_and_errors():
 
     # Create a second event so LIST_EVENTS filtering has something to omit.
     executor.execute(
-        [
-            f"CREATE_EVENT calendar={calendar_id} title=Retro start=2025-01-10T10:00Z "
-            f"end=2025-01-10T11:00Z timezone=UTC"
-            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
-        ]
+        [f"CREATE_EVENT calendar={calendar_id} title=Retro start=2025-01-10T10:00Z end=2025-01-10T11:00Z timezone=UTC"]
     )
 
     filtered = executor.execute(
@@ -411,6 +407,14 @@ def test_dsl_executor_reports_parsing_errors():
     with pytest.raises(CalendarError) as excinfo:
         executor.execute([f"CREATE_EVENT calendar={calendar_id} title=Bad start=2025-01-01T10:00Z end=2025-01-01T11:00Z extra=value"])
     assert "unknown arguments" in str(excinfo.value)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} calendar=duplicate title=Bad start=2025-03-01T10:00Z end=2025-03-01T11:00Z timezone=UTC"
+            ]
+        )
+    assert "Duplicate argument" in str(excinfo.value)
 
     with pytest.raises(CalendarError) as excinfo:
         executor.execute(['CREATE_CALENDAR name=Work invalid'])
