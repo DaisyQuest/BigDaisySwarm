@@ -6,7 +6,14 @@ import textwrap
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
-from .agents import AgentType, default_agent_types, default_team_config, validate_team_config
+from .agents import (
+    DEFAULT_AGENT_DEFINITIONS_PATH,
+    AgentType,
+    default_agent_types,
+    default_team_config,
+    load_agent_types_from_file,
+    validate_team_config,
+)
 
 
 DEFAULT_MEETING_ID = "0001-kickoff"
@@ -43,6 +50,28 @@ def _ensure_project_agents_file(project_root: Path) -> None:
         return
 
     agents_md.write_text(_project_agents_content(project_root.name), encoding="utf-8")
+
+
+def load_team_config(project_root: Path) -> Sequence[Mapping[str, object]]:
+    team_config_path = project_root / "teamconfig.json"
+    if not team_config_path.is_file():
+        raise ValueError(f"teamconfig.json not found at {team_config_path}")
+
+    with team_config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+
+    if "agents" not in data or not isinstance(data["agents"], list):
+        raise ValueError("teamconfig.json must include an 'agents' list")
+
+    return data["agents"]
+
+
+def validate_project_teamconfig(
+    project_root: Path, *, agent_definitions_path: Path | None = None
+) -> None:
+    agent_types = load_agent_types_from_file(agent_definitions_path or DEFAULT_AGENT_DEFINITIONS_PATH)
+    agents = load_team_config(project_root)
+    validate_team_config(agents, agent_types=agent_types)
 
 
 def write_team_config(path: Path, team_config: Sequence[Mapping[str, object]]) -> None:
@@ -149,18 +178,9 @@ def kickoff_task(project_root: Path, task: str, meeting_id: str | None = None) -
     if meeting_id and _extract_index(meeting_id) is None:
         raise ValueError("meeting_id must start with a numeric prefix")
 
-    team_config_path = project_root / "teamconfig.json"
-    if not team_config_path.is_file():
-        raise ValueError(f"teamconfig.json not found at {team_config_path}")
-
-    with team_config_path.open(encoding="utf-8") as config_file:
-        data = json.load(config_file)
-
-    if "agents" not in data:
-        raise ValueError("teamconfig.json must include an 'agents' list")
-
-    agents = data["agents"]
-    validate_team_config(agents)
+    agents = load_team_config(project_root)
+    agent_types = load_agent_types_from_file(DEFAULT_AGENT_DEFINITIONS_PATH)
+    validate_team_config(agents, agent_types=agent_types)
     agent_ids = [entry["id"] for entry in agents]
 
     opinion_root = project_root / "meetings"
