@@ -8,9 +8,11 @@ from bigdaisyswarm.project import (
     append_summary_update,
     create_meeting,
     kickoff_task,
+    load_team_config,
     next_meeting_id,
     record_summary_update,
     scaffold_project,
+    validate_project_teamconfig,
     write_team_config,
     _slugify,
 )
@@ -243,6 +245,145 @@ def test_create_meeting_rejects_duplicate_or_empty_agents(tmp_path):
         create_meeting(opinion_root, "0001-kickoff", ["Dev", "Dev"])
 
 
+def test_validate_project_teamconfig_accepts_valid_config(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    validate_project_teamconfig(project_root)
+    assert load_team_config(project_root)  # confirm the configuration is still readable
+
+
+def test_validate_project_teamconfig_detects_missing_agent(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"] = [entry for entry in data["agents"] if entry["type"] != "NoteTaker"]
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "Missing required agent types" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_detects_parameter_out_of_range(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"][0]["parameters"]["preferSimplicityLevel"] = 1.5
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "must be <= 1.0" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_requires_agents_list(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    config_path = project_root / "teamconfig.json"
+    config_path.write_text(json.dumps({"agents": "not-a-list"}, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "must include an 'agents' list" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_rejects_invalid_agent_definitions(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    bad_definitions = tmp_path / "AGENTS.json"
+    bad_definitions.write_text(
+        json.dumps(
+            {
+                "Architect": {
+                    "description": "Broken",
+                    "parameters": {
+                        "preferSimplicityLevel": {
+                            "type": "",
+                            "min": 0.0,
+                            "max": 1.0,
+                            "default": 0.5,
+                        }
+                    },
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root, agent_definitions_path=bad_definitions)
+
+    assert "must declare a string 'type'" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_requires_all_agent_definitions(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    missing_definitions = tmp_path / "AGENTS-missing.json"
+    missing_definitions.write_text(
+        json.dumps({"Architect": {"description": "Only one", "parameters": {}}}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root, agent_definitions_path=missing_definitions)
+
+    assert "Agent definitions missing required types" in str(excinfo.value)
+
+
+def test_cli_validate_config(tmp_path, capsys):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    from bigdaisyswarm import cli
+
+    cli.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--validate-config",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert "Team configuration is valid." in captured.out
+
+
+def test_cli_validate_config_reports_errors(tmp_path, capsys):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"] = [entry for entry in data["agents"] if entry["type"] != "Critic"]
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    from bigdaisyswarm import cli
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(
+            [
+                "--project-root",
+                str(project_root),
+                "--validate-config",
+            ]
+        )
+
+    assert excinfo.value.code == 1
+    captured = capsys.readouterr()
+    assert "Missing required agent types" in captured.err
 def test_append_summary_creates_missing_summary(tmp_path):
     meeting_path = tmp_path / "meetings" / "0003-summary"
     meeting_path.mkdir(parents=True)

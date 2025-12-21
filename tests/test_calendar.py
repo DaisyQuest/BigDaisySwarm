@@ -51,7 +51,9 @@ def make_services(storage: CalendarStorage | None = None):
 
 def test_create_and_list_calendar():
     calendar_service = CalendarService()
-    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"], description="Team calendar")
+    calendar_id = calendar_service.create_calendar(
+        "Work", owners=["alice@example.com"], description="Team calendar"
+    )
     calendars = calendar_service.list_calendars()
     assert calendars[0]["id"] == calendar_id
     assert calendars[0]["description"] == "Team calendar"
@@ -81,10 +83,19 @@ def test_create_event_validates_inputs():
         event_service.create_event(calendar_id, "Bad", naive_start, end, timezone="UTC")
 
     with pytest.raises(CalendarError):
-        event_service.create_event(calendar_id, "Bad", "not-a-datetime", end, timezone="UTC")  # type: ignore[arg-type]
+        event_service.create_event(
+            calendar_id, "Bad", "not-a-datetime", end, timezone="UTC"  # type: ignore[arg-type]
+        )
 
     with pytest.raises(CalendarError):
-        event_service.create_event(calendar_id, "Bad", start, end, timezone="UTC", metadata="metadata")  # type: ignore[arg-type]
+        event_service.create_event(
+            calendar_id,
+            "Bad",
+            start,
+            end,
+            timezone="UTC",
+            metadata="metadata",  # type: ignore[arg-type]
+        )
 
 
 def test_update_and_cancel_event():
@@ -103,10 +114,13 @@ def test_update_and_cancel_event():
         event_service.update_event(event_id, metadata="not-a-mapping")
 
     event_service.cancel_event(event_id)
-    assert event.canceled is True
+    canceled_event = event_service.list_events(calendar_id)[0]
+    assert canceled_event.canceled is True
 
     event_service.cancel_event(event_id, occurrence=dt.date(2025, 1, 2))
-    assert dt.date(2025, 1, 2) in event.canceled_occurrences
+    updated_event = event_service._get_event(event_id)
+    assert dt.date(2025, 1, 2) in updated_event.overrides
+    assert updated_event.overrides[dt.date(2025, 1, 2)].canceled is True
 
 
 def test_event_range_filtering():
@@ -153,6 +167,54 @@ def test_update_event_rejects_invalid_times_and_timezone():
         event_service.update_event(event_id, timezone="")
 
 
+def test_cancel_and_reschedule_single_occurrence():
+    _, event_service, _, calendar_id = make_services()
+    start = dt.datetime(2025, 1, 1, 10, 0, tzinfo=dt.timezone.utc)
+    end = dt.datetime(2025, 1, 1, 11, 0, tzinfo=dt.timezone.utc)
+    event_id = event_service.create_event(calendar_id, "Standup", start, end, timezone="UTC")
+
+    # Cancel the only occurrence; it should drop from listings.
+    event_service.cancel_event(event_id, occurrence=dt.date(2025, 1, 1))
+    events_after_cancel = event_service.list_events(calendar_id)
+    assert events_after_cancel == []
+
+    # Reschedule creates a new occurrence entry that participates in filtering.
+    event_service.reschedule_event(
+        event_id,
+        occurrence=dt.date(2025, 1, 1),
+        start=dt.datetime(2025, 1, 2, 12, 0, tzinfo=dt.timezone.utc),
+        end=dt.datetime(2025, 1, 2, 13, 0, tzinfo=dt.timezone.utc),
+    )
+    window = event_service.list_events(
+        calendar_id,
+        range_start=dt.datetime(2025, 1, 2, 0, 0, tzinfo=dt.timezone.utc),
+        range_end=dt.datetime(2025, 1, 3, 0, 0, tzinfo=dt.timezone.utc),
+    )
+    assert len(window) == 1
+    assert window[0].start.date() == dt.date(2025, 1, 2)
+    assert window[0].start.hour == 12
+
+    # Conflicting overrides on the same occurrence are rejected.
+    with pytest.raises(CalendarError):
+        event_service.reschedule_event(
+            event_id,
+            occurrence=dt.date(2025, 1, 1),
+            start=dt.datetime(2025, 1, 2, 15, 0, tzinfo=dt.timezone.utc),
+            end=dt.datetime(2025, 1, 2, 16, 0, tzinfo=dt.timezone.utc),
+        )
+
+    event_service.cancel_event(event_id, occurrence=dt.date(2025, 1, 1))
+    assert event_service.list_events(calendar_id) == []
+
+    with pytest.raises(CalendarError):
+        event_service.reschedule_event(
+            event_id,
+            occurrence="2025-01-02",  # type: ignore[arg-type]
+            start=dt.datetime(2025, 1, 2, 12, 0, tzinfo=dt.timezone.utc),
+            end=dt.datetime(2025, 1, 2, 11, 0, tzinfo=dt.timezone.utc),
+        )
+
+
 def test_participant_operations():
     _, event_service, participant_service, calendar_id = make_services()
     start = dt.datetime(2025, 1, 1, 10, 0, tzinfo=dt.timezone.utc)
@@ -174,9 +236,7 @@ def test_participant_operations():
         participant_service.update_participant(event_id, "missing", response="accepted")
 
     with pytest.raises(CalendarError):
-        participant_service.add_participant(
-            event_id, Participant(id="bob", name="Bob", email="")
-        )
+        participant_service.add_participant(event_id, Participant(id="bob", name="Bob", email=""))
 
 
 def test_dsl_executor_success_and_errors():
@@ -187,7 +247,9 @@ def test_dsl_executor_success_and_errors():
     results = executor.execute(["CREATE_CALENDAR name=Work owners=alice@example.com,bob@example.com"])
     calendar_id = results[0].split()[1]
     event_result = executor.execute(
-        [f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"]
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
+        ]
     )
     assert event_result[0].startswith("EVENT")
 
@@ -200,6 +262,41 @@ def test_dsl_executor_success_and_errors():
     with pytest.raises(CalendarError) as excinfo:
         executor.execute(["CREATE_CALENDAR name=Work invalid"])
     assert "Invalid token" in str(excinfo.value)
+
+
+def test_dsl_executor_handles_occurrence_overrides():
+    calendar_service = CalendarService()
+    event_service = EventService(calendar_service)
+    executor = DSLExecutor(calendar_service, event_service)
+
+    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"])
+    event_id = executor.execute(
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
+        ]
+    )[0].split()[1]
+
+    reschedule_result = executor.execute(
+        [
+            f"RESCHEDULE_EVENT event={event_id} occurrence=2025-01-01 start=2025-01-02T12:00Z end=2025-01-02T13:00Z"
+        ]
+    )
+    assert reschedule_result[0] == f"RESCHEDULED {event_id}"
+    occurrences = event_service.list_events(calendar_id)
+    assert len(occurrences) == 1
+    assert occurrences[0].start == dt.datetime(2025, 1, 2, 12, 0, tzinfo=dt.timezone.utc)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"RESCHEDULE_EVENT event={event_id} occurrence=bad-date start=2025-01-03T12:00Z end=2025-01-03T13:00Z"
+            ]
+        )
+    assert "Invalid occurrence date" in str(excinfo.value)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute([f"RESCHEDULE_EVENT event={event_id} occurrence=2025-01-01 start=2025-01-01T12:00Z"])
+    assert "start and end must be provided" in str(excinfo.value)
 
 
 def test_calendar_validation_errors():
@@ -247,7 +344,11 @@ def test_dsl_executor_reports_parsing_errors():
     executor = DSLExecutor(calendar_service, event_service)
 
     with pytest.raises(CalendarError) as excinfo:
-        executor.execute(["CREATE_EVENT calendar=missing title=Bad start=not-a-date end=2025-01-01T11:00Z timezone=UTC"])
+        executor.execute(
+            [
+                "CREATE_EVENT calendar=missing title=Bad start=not-a-date end=2025-01-01T11:00Z timezone=UTC"
+            ]
+        )
     assert "Line 1" in str(excinfo.value)
     assert "Invalid datetime format" in str(excinfo.value)
 
@@ -270,12 +371,16 @@ def test_dsl_executor_participant_commands():
     results = executor.execute(["CREATE_CALENDAR name=Work owners=alice@example.com"])
     calendar_id = results[0].split()[1]
     event_result = executor.execute(
-        [f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"]
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"
+        ]
     )
     event_id = event_result[0].split()[1]
 
     add_result = executor.execute(
-        [f"ADD_PARTICIPANT event={event_id} participant=alice name=Alice email=alice@example.com response=accepted"]
+        [
+            f"ADD_PARTICIPANT event={event_id} participant=alice name=Alice email=alice@example.com response=accepted"
+        ]
     )
     assert add_result[0] == "PARTICIPANT alice ADDED"
 
@@ -284,9 +389,7 @@ def test_dsl_executor_participant_commands():
     )
     assert update_result[0] == "PARTICIPANT alice UPDATED"
 
-    remove_result = executor.execute(
-        [f"REMOVE_PARTICIPANT event={event_id} participant=alice"]
-    )
+    remove_result = executor.execute([f"REMOVE_PARTICIPANT event={event_id} participant=alice"])
     assert remove_result[0] == "PARTICIPANT alice REMOVED"
     assert "alice" not in event_service.list_events(calendar_id)[0].participants
 
