@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0011-address-web-client-feedback
+Agent: ArchitectA
+Task: address web client feedback
+Context:
+- Duplicate helper definitions in DSLExecutor introduce ambiguity for metadata parsing and unknown-command messages.
+- Web client modules launched but require stronger guarantees around normalization and persistence.
+Position:
+- Consolidate the DSL helper set and keep strict validation semantics to mirror backend intent.
+- Prove browser-facing utilities via Node-based tests to avoid drift without adding dependencies.
+Recommendations:
+- Remove redundant helper definitions and retain the stricter versions (metadata objects only, duplicate-argument rejection).
+- Add tests for normalization (owners/tags trimming), deterministic palette selection, and localStorage-backed storage.
+- Preserve current dependency-free architecture while deepening coverage on insights and empty states.

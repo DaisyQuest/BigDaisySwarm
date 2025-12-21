@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: Developer
+Task: start web client
+Context:
+- Need to deliver a working static client with minimal setup friction.
+- Tests must run via Node inside pytest, so modules should be importable without bundlers.
+Position:
+- Implement the model + templates + controller as separate files to keep responsibilities crisp and testable.
+- Seed state on first load; afterwards rely on a storage adapter (memory in tests, localStorage in browser).
+Recommendations:
+- Build calendar_model.mjs for validation and agenda grouping, ui_templates.mjs for markup, app.js to wire forms/events.
+- Use datetime-local inputs for the UI and ISO strings inside the model to simplify validation.
+- Keep CSS self-contained and modern (cards, gradients) to satisfy the expressive UI ask.

@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: ArchitectA
+Task: start web client
+Context:
+- We are kicking off the HTML + JS client as the first frontend against the CalendarApp spec.
+- The backend remains in Python; for now we will showcase flows with an in-memory JS mirror and DSL-aligned vocabulary.
+Position:
+- Keep the client dependency-free and modular to mirror the simplicity mandate in the spec.
+- Separate the data model from rendering so we can evolve the UI without rewriting business rules.
+Recommendations:
+- Introduce a CalendarModel with explicit validation for time ranges and ownership to match backend invariants.
+- Use pure template functions that emit semantic HTML for agenda, calendars, and insight cards.
+- Ship seed data that reflects our core rituals to make the initial load meaningful and testable.

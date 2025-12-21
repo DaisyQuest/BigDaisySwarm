@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: TestEngineer
+Task: design web client architecture
+Context:
+- Tests must exercise every branch: validation errors, empty states, agenda grouping, storage fallbacks.
+- Node-based execution will parse JSON emitted from scripts.
+Position:
+- Build helper to run Node with --input-type=module so ES modules load cleanly.
+- Cover template output both for empty agendas and populated cards to prevent regressions.
+Recommendations:
+- Assert error messages for missing owners, unknown calendars, and reversed ranges.
+- Validate insights calculations (counts, durations, span days) to catch math drift.
+- Check the HTML shell includes all data-region hooks to protect against DOM changes.

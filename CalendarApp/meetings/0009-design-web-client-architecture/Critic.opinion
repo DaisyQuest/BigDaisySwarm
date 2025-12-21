@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: Critic
+Task: design web client architecture
+Context:
+- Without a backend wire-up, we risk letting the JS model drift from the Python source of truth.
+Position:
+- Keep validation messages and shape close to backend semantics; no silent coercions.
+- Avoid clever abstractions that hide time parsing or mutate shared state implicitly.
+Recommendations:
+- Normalize inputs aggressively (trim names, owners, tags) and throw descriptive errors early.
+- Keep palette and seed data deterministic so tests don't flake on random IDs.
+- Document assumptions in comments for future API integration.

@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: ArchitectB
+Task: start web client
+Context:
+- We want a visually expressive web surface that still honors the transport-agnostic backend contract.
+- HTML + JS should be portable and runnable from a static host without extra tooling.
+Position:
+- Bias toward animated gradients and bold typography to embody the "beautiful abstract" request, but keep DOM structure lean.
+- Prefer ES modules (.mjs) to let Node-based tests import the same code paths the browser uses.
+Recommendations:
+- Design templates that can degrade gracefully when no data is present, with strong empty states.
+- Add a small palette utility so calendar colorization is deterministic and consistent across renders.
+- Reserve space for future API binding by keeping model creation and storage adapters injectable.

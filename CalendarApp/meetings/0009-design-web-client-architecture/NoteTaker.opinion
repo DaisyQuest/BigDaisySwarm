@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0009-design-web-client-architecture
+Agent: NoteTaker
+Task: design web client architecture
+Context:
+- Alignment reached on modular layout (model/templates/controller), deterministic styling, and testability via Node imports.
+Position:
+- Consensus is strong around purity of templates and explicit validation logic in the model.
+Recommendations:
+- Capture the palette/hash approach and storage adapter contract in code comments.
+- Keep this summary linked to the implementation PR for traceability.

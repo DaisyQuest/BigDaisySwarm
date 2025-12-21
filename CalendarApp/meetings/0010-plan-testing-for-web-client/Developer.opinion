@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: Developer
+Task: plan testing for web client
+Context:
+- We will drive tests from pytest using Node to avoid browser dependencies.
+Position:
+- Build a helper that executes Node with inline scripts and parses JSON for assertions.
+- Validate both model behaviors (create/list, agenda grouping, insights) and template rendering states.
+Recommendations:
+- Add an HTML shell test to ensure required data-region hooks remain after refactors.
+- Cover storage fallback paths by constructing the model with stub storage objects.
+- Keep scripts small and purpose-built to minimize flake risk.

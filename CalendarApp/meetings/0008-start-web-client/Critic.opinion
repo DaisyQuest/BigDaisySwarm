@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0008-start-web-client
+Agent: Critic
+Task: start web client
+Context:
+- Building a static client risks divergence from backend validation semantics and brittle DOM coupling.
+Position:
+- Push for deterministic color logic and consistent date parsing so we avoid timezone surprises.
+- Keep markup semantic; avoid over-nesting that would hurt accessibility or test readability.
+Recommendations:
+- Add explicit error messages for invalid ranges and unknown calendars to mirror backend clarity.
+- Provide strong empty states to avoid blank screens when filters exclude all events.
+- Avoid hidden state mutations; ensure all mutations flow through the model so tests can assert storage snapshots.

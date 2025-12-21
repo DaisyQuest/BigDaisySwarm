@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0010-plan-testing-for-web-client
+Agent: TestEngineer
+Task: plan testing for web client
+Context:
+- Coverage must hit validation, rendering, and storage boundaries without relying on a browser.
+Position:
+- Use Node subprocesses to import modules directly and assert on structured JSON output.
+- Keep assertions focused on semantics (counts, errors, key strings) rather than brittle markup snapshots.
+Recommendations:
+- Explicitly test missing-owner errors, unknown calendar lookups, reversed ranges, and deterministic palette output.
+- Check both empty and populated agenda rendering to guard against regressions in template functions.
+- Validate the HTML shell includes the data-region hooks required by the controller.
