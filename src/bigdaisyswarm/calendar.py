@@ -512,6 +512,13 @@ class DSLExecutor:
     def _parse_metadata(raw: str) -> Dict[str, object]:
         try:
             parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise CalendarError("metadata must be valid JSON object") from exc
+        if not isinstance(parsed, Mapping):
+            raise CalendarError("metadata must be a JSON object mapping keys to values")
+        return dict(parsed)
+
+    @staticmethod
     def _tokenize(line: str) -> List[str]:
         try:
             return shlex.split(line)
@@ -525,8 +532,9 @@ class DSLExecutor:
             if "=" not in token:
                 raise CalendarError(f"Invalid token '{token}'. Expected key=value pairs")
             key, value = token.split("=", 1)
-            if key not in args:
-                args[key] = value
+            if key in args:
+                raise CalendarError(f"Duplicate argument '{key}'")
+            args[key] = value
         return args
 
     @staticmethod
