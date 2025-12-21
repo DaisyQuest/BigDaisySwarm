@@ -20,7 +20,7 @@ class ParameterSpec:
         if value is None:
             raise ValueError(f"Parameter '{self.name}' requires a numeric value")
 
-        if not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"Parameter '{self.name}' must be numeric")
 
         if self.min_value is not None and value < self.min_value:

@@ -93,6 +93,16 @@ def test_default_team_config_requires_parameter_defaults():
     assert "No default value provided" in str(excinfo.value)
 
 
+def test_validate_team_config_rejects_boolean_parameter_value():
+    team_config = default_team_config()
+    team_config[0]["parameters"]["preferSimplicityLevel"] = True
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_team_config(team_config)
+
+    assert "must be numeric" in str(excinfo.value)
+
+
 def test_validate_team_config_rejects_duplicate_ids():
     team_config = default_team_config()
     team_config.append(

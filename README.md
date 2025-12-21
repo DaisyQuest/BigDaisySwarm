@@ -18,3 +18,17 @@ Install dependencies and run the test suite:
 python -m pip install -e .[dev]
 pytest
 ```
+
+## Kick off a new agent meeting for a task
+
+After scaffolding a project, you can open a fresh meeting for a task so each agent has an opinion file pre-populated with the task context:
+
+```bash
+python -m bigdaisyswarm.cli --project-root CalendarApp --task "continue developing the software"
+# -> outputs the new meeting folder path, e.g., CalendarApp/meetings/0002-continue-developing-the-software
+```
+
+This command:
+- Reads `teamconfig.json` to determine participating agents.
+- Creates the next numbered meeting folder under `meetings/` (or uses `--meeting-id` if you supply one).
+- Seeds each `{agentId}.opinion` file with the task so agents can record their positions and recommendations.
