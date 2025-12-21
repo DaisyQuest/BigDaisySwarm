@@ -5,10 +5,20 @@ import pytest
 
 from bigdaisyswarm.project import (
     DEFAULT_MEETING_ID,
+    append_summary_update,
     create_meeting,
     kickoff_task,
+
+    latest_meeting_path,
+    list_meetings,
     next_meeting_id,
+    plan_next_meeting,
+
+    load_team_config,
+    record_summary_update,
+
     scaffold_project,
+    validate_project_teamconfig,
     write_team_config,
     _slugify,
 )
@@ -239,3 +249,284 @@ def test_create_meeting_rejects_duplicate_or_empty_agents(tmp_path):
 
     with pytest.raises(ValueError):
         create_meeting(opinion_root, "0001-kickoff", ["Dev", "Dev"])
+
+
+def test_plan_next_meeting_is_dry_run(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    planned = plan_next_meeting(project_root, task="Continue working")
+    assert planned.name.startswith("0002-continue-working")
+    assert not planned.exists()
+
+    # Original meeting preserved
+    assert (project_root / "meetings" / DEFAULT_MEETING_ID / "summary.md").exists()
+
+
+def test_plan_next_meeting_rejects_invalid_meeting_id(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    with pytest.raises(ValueError):
+        plan_next_meeting(project_root, task="Work", meeting_id="custom-id")
+
+
+def test_list_meetings_requires_directory(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    project_root.mkdir()
+    write_team_config(project_root / "teamconfig.json", default_team_config())
+
+    with pytest.raises(ValueError):
+        list_meetings(project_root)
+
+    meetings_path = project_root / "meetings"
+    meetings_path.write_text("not a dir")
+    with pytest.raises(ValueError):
+        list_meetings(project_root)
+
+
+def test_list_meetings_filters_and_sorts(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meetings = project_root / "meetings"
+    meetings.mkdir(parents=True)
+    (meetings / "0003-design").mkdir()
+    (meetings / "0001-kickoff").mkdir()
+    (meetings / "notes").mkdir()
+
+    sorted_meetings = list_meetings(project_root)
+    assert [path.name for path in sorted_meetings] == ["0001-kickoff", "0003-design"]
+
+
+def test_latest_meeting_path_requires_entries(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meetings = project_root / "meetings"
+    meetings.mkdir(parents=True)
+
+    with pytest.raises(ValueError):
+        latest_meeting_path(project_root)
+def test_validate_project_teamconfig_accepts_valid_config(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    validate_project_teamconfig(project_root)
+    assert load_team_config(project_root)  # confirm the configuration is still readable
+
+
+def test_validate_project_teamconfig_detects_missing_agent(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"] = [entry for entry in data["agents"] if entry["type"] != "NoteTaker"]
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "Missing required agent types" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_detects_parameter_out_of_range(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"][0]["parameters"]["preferSimplicityLevel"] = 1.5
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "must be <= 1.0" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_requires_agents_list(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    config_path = project_root / "teamconfig.json"
+    config_path.write_text(json.dumps({"agents": "not-a-list"}, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root)
+
+    assert "must include an 'agents' list" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_rejects_invalid_agent_definitions(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    bad_definitions = tmp_path / "AGENTS.json"
+    bad_definitions.write_text(
+        json.dumps(
+            {
+                "Architect": {
+                    "description": "Broken",
+                    "parameters": {
+                        "preferSimplicityLevel": {
+                            "type": "",
+                            "min": 0.0,
+                            "max": 1.0,
+                            "default": 0.5,
+                        }
+                    },
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root, agent_definitions_path=bad_definitions)
+
+    assert "must declare a string 'type'" in str(excinfo.value)
+
+
+def test_validate_project_teamconfig_requires_all_agent_definitions(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    missing_definitions = tmp_path / "AGENTS-missing.json"
+    missing_definitions.write_text(
+        json.dumps({"Architect": {"description": "Only one", "parameters": {}}}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_project_teamconfig(project_root, agent_definitions_path=missing_definitions)
+
+    assert "Agent definitions missing required types" in str(excinfo.value)
+
+
+def test_cli_validate_config(tmp_path, capsys):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    from bigdaisyswarm import cli
+
+    cli.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--validate-config",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert "Team configuration is valid." in captured.out
+
+
+def test_cli_validate_config_reports_errors(tmp_path, capsys):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    config_path = project_root / "teamconfig.json"
+    with config_path.open(encoding="utf-8") as config_file:
+        data = json.load(config_file)
+    data["agents"] = [entry for entry in data["agents"] if entry["type"] != "Critic"]
+    config_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    from bigdaisyswarm import cli
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(
+            [
+                "--project-root",
+                str(project_root),
+                "--validate-config",
+            ]
+        )
+
+    assert excinfo.value.code == 1
+    captured = capsys.readouterr()
+    assert "Missing required agent types" in captured.err
+def test_append_summary_creates_missing_summary(tmp_path):
+    meeting_path = tmp_path / "meetings" / "0003-summary"
+    meeting_path.mkdir(parents=True)
+
+    summary_path = append_summary_update(
+        meeting_path,
+        outcomes=["Delivered MVP"],
+        decisions=["Ship to beta users"],
+        next_steps=["Monitor feedback"],
+        task="Release MVP",
+    )
+
+    content = summary_path.read_text(encoding="utf-8")
+    assert "Meeting: 0003-summary" in content
+    assert "Task: Release MVP" in content
+    assert "- Delivered MVP" in content
+    assert "- Ship to beta users" in content
+    assert "- Monitor feedback" in content
+
+
+def test_append_summary_appends_without_overwriting_existing_sections(tmp_path):
+    meeting_path = tmp_path / "meetings" / "0004-existing"
+    meeting_path.mkdir(parents=True)
+    summary_file = meeting_path / "summary.md"
+    summary_file.write_text(
+        "# Meeting Summary\n\n"
+        "Meeting: 0004-existing\n"
+        "Task: Existing work\n\n"
+        "## Outcomes\n"
+        "- Kept legacy behavior\n\n"
+        "## Decisions\n"
+        "- Proceed cautiously\n\n"
+        "## Next steps\n"
+        "- Document risks\n",
+        encoding="utf-8",
+    )
+
+    append_summary_update(
+        meeting_path,
+        outcomes=["Added new capability"],
+        decisions=["Revisit rollout plan"],
+        next_steps=["Schedule postmortem"],
+    )
+
+    updated = summary_file.read_text(encoding="utf-8")
+    assert "- Kept legacy behavior" in updated
+    assert "- Added new capability" in updated
+    assert updated.index("- Kept legacy behavior") < updated.index("- Added new capability")
+    assert "- Proceed cautiously" in updated
+    assert "- Revisit rollout plan" in updated
+    assert "- Document risks" in updated
+    assert "- Schedule postmortem" in updated
+
+
+def test_record_summary_update_handles_missing_sections_and_requires_meeting(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    meeting_path = project_root / "meetings" / "0005-missing"
+    meeting_path.mkdir(parents=True)
+    summary_file = meeting_path / "summary.md"
+    summary_file.write_text(
+        "# Meeting Summary\n\n"
+        "Meeting: 0005-missing\n"
+        "Task: Partial summary\n\n"
+        "## Outcomes\n"
+        "- Initial outcome\n",
+        encoding="utf-8",
+    )
+
+    updated_path = record_summary_update(
+        project_root,
+        "0005-missing",
+        outcomes=["Follow-up outcome"],
+        decisions=["Capture decision later"],
+        next_steps=["Add retrospective notes"],
+    )
+
+    assert updated_path == summary_file
+    updated = summary_file.read_text(encoding="utf-8")
+    assert "- Initial outcome" in updated
+    assert "- Follow-up outcome" in updated
+    assert "## Decisions" in updated
+    assert "- Capture decision later" in updated
+    assert "## Next steps" in updated
+    assert "- Add retrospective notes" in updated
+
+    with pytest.raises(ValueError):
+        record_summary_update(project_root, "9999-missing")

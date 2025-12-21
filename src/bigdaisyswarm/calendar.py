@@ -4,8 +4,10 @@ import datetime as dt
 import json
 import shlex
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, Iterable, List, Mapping, Optional
+
+from .storage import CalendarStorage, InMemoryCalendarStorage
 
 
 class CalendarError(ValueError):
@@ -36,6 +38,17 @@ class Participant:
 
 
 @dataclass
+class OccurrenceOverride:
+    occurrence_date: dt.date
+    start: Optional[dt.datetime] = None
+    end: Optional[dt.datetime] = None
+    canceled: bool = False
+
+    def is_cancellation(self) -> bool:
+        return self.canceled
+
+
+@dataclass
 class Event:
     id: str
     calendar_id: str
@@ -46,7 +59,7 @@ class Event:
     recurrence: Optional[str] = None
     participants: Dict[str, Participant] = field(default_factory=dict)
     metadata: Dict[str, object] = field(default_factory=dict)
-    canceled_occurrences: List[dt.date] = field(default_factory=list)
+    overrides: Dict[dt.date, OccurrenceOverride] = field(default_factory=dict)
     canceled: bool = False
 
     def update(self, **fields: object) -> None:
@@ -71,41 +84,70 @@ class Event:
     def cancel(self, occurrence: Optional[dt.date] = None) -> None:
         if occurrence is None:
             self.canceled = True
-        else:
-            if occurrence not in self.canceled_occurrences:
-                self.canceled_occurrences.append(occurrence)
+            return
+        _require(isinstance(occurrence, dt.date), "occurrence must be a date")
+        override = OccurrenceOverride(occurrence_date=occurrence, canceled=True)
+        self._set_override(override)
+
+    def reschedule(self, occurrence: dt.date, start: dt.datetime, end: dt.datetime) -> None:
+        _require(isinstance(occurrence, dt.date), "occurrence must be a date")
+        normalized_start = _normalize_datetime(start)
+        normalized_end = _normalize_datetime(end)
+        _require(normalized_start < normalized_end, "start must be before end")
+        override = OccurrenceOverride(
+            occurrence_date=occurrence,
+            start=normalized_start,
+            end=normalized_end,
+            canceled=False,
+        )
+        self._set_override(override)
+
+    def _set_override(self, override: OccurrenceOverride) -> None:
+        existing = self.overrides.get(override.occurrence_date)
+        if existing and existing != override:
+            if existing.is_cancellation() != override.is_cancellation():
+                self.overrides[override.occurrence_date] = override
+                return
+            raise CalendarError(f"Conflicting override for {override.occurrence_date.isoformat()}")
+        self.overrides[override.occurrence_date] = override
 
 
 class CalendarService:
-    def __init__(self) -> None:
-        self._calendars: Dict[str, Dict[str, object]] = {}
+    def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
+        self._storage = storage or InMemoryCalendarStorage()
 
     def create_calendar(self, name: str, owners: Iterable[str], description: Optional[str] = None) -> str:
         _require(name, "calendar name is required")
         owners = list(owners)
         _require(owners, "at least one owner is required")
         calendar_id = uuid.uuid4().hex
-        self._calendars[calendar_id] = {
+        calendar = {
             "id": calendar_id,
             "name": name,
             "owners": owners,
             "description": description or "",
         }
+        self._storage.save_calendar(calendar)
         return calendar_id
 
     def list_calendars(self, owner: Optional[str] = None) -> List[Dict[str, object]]:
-        if owner is None:
-            return list(self._calendars.values())
-        return [c for c in self._calendars.values() if owner in c["owners"]]
+        return self._storage.list_calendars(owner=owner)
 
     def ensure_calendar_exists(self, calendar_id: str) -> None:
-        _require(calendar_id in self._calendars, f"calendar '{calendar_id}' does not exist")
+        _require(
+            self._storage.get_calendar(calendar_id) is not None,
+            f"calendar '{calendar_id}' does not exist",
+        )
+
+    @property
+    def storage(self) -> CalendarStorage:
+        return self._storage
 
 
 class EventService:
-    def __init__(self, calendar_service: CalendarService) -> None:
+    def __init__(self, calendar_service: CalendarService, storage: Optional[CalendarStorage] = None) -> None:
         self._calendar_service = calendar_service
-        self._events: Dict[str, Event] = {}
+        self._storage = storage or calendar_service.storage
 
     def create_event(
         self,
@@ -128,13 +170,11 @@ class EventService:
             _require(isinstance(metadata, Mapping), "metadata must be a mapping")
 
         event_id = uuid.uuid4().hex
-        participant_map = {
-            participant.id: participant for participant in (participants or [])
-        }
+        participant_map = {participant.id: participant for participant in (participants or [])}
         for participant in participant_map.values():
             _require(participant.email, "participant email is required")
 
-        self._events[event_id] = Event(
+        event = Event(
             id=event_id,
             calendar_id=calendar_id,
             title=title,
@@ -145,15 +185,23 @@ class EventService:
             participants=participant_map,
             metadata=dict(metadata or {}),
         )
+        self._storage.save_event(event)
         return event_id
 
     def update_event(self, event_id: str, **fields: object) -> None:
         event = self._get_event(event_id)
         event.update(**fields)
+        self._storage.save_event(event)
 
     def cancel_event(self, event_id: str, occurrence: Optional[dt.date] = None) -> None:
         event = self._get_event(event_id)
         event.cancel(occurrence=occurrence)
+        self._storage.save_event(event)
+
+    def reschedule_event(self, event_id: str, occurrence: dt.date, start: dt.datetime, end: dt.datetime) -> None:
+        event = self._get_event(event_id)
+        event.reschedule(occurrence=occurrence, start=start, end=end)
+        self._storage.save_event(event)
 
     def list_events(
         self,
@@ -162,7 +210,7 @@ class EventService:
         range_end: Optional[dt.datetime] = None,
     ) -> List[Event]:
         self._calendar_service.ensure_calendar_exists(calendar_id)
-        events = [event for event in self._events.values() if event.calendar_id == calendar_id]
+        events = self._storage.list_events(calendar_id)
         if range_start or range_end:
             if range_start:
                 range_start = _normalize_datetime(range_start)
@@ -170,17 +218,51 @@ class EventService:
                 range_end = _normalize_datetime(range_end)
             if range_start and range_end:
                 _require(range_start < range_end, "range_start must be before range_end")
-            events = [
-                event
-                for event in events
-                if (range_start is None or event.end >= range_start)
-                and (range_end is None or event.start <= range_end)
-            ]
-        return events
+
+        def overlaps(start: dt.datetime, end: dt.datetime) -> bool:
+            if range_start and end < range_start:
+                return False
+            if range_end and start > range_end:
+                return False
+            return True
+
+        results: List[Event] = []
+        for event in events:
+            for occurrence in self._render_occurrences(event):
+                if (range_start or range_end) and not overlaps(occurrence.start, occurrence.end):
+                    continue
+                results.append(occurrence)
+        return results
 
     def _get_event(self, event_id: str) -> Event:
-        _require(event_id in self._events, f"event '{event_id}' does not exist")
-        return self._events[event_id]
+        event = self._storage.get_event(event_id)
+        _require(event is not None, f"event '{event_id}' does not exist")
+        return event
+
+    def _render_occurrences(self, event: Event) -> List[Event]:
+        base_date = event.start.date()
+        occurrences: List[Event] = []
+
+        def add_occurrence(override: Optional[OccurrenceOverride], *, is_base: bool) -> None:
+            if override and override.is_cancellation():
+                return
+            if override and override.start and override.end:
+                occurrences.append(replace(event, start=override.start, end=override.end))
+            elif is_base:
+                occurrences.append(replace(event))
+            elif override:
+                raise CalendarError("Override must include start and end for rescheduled occurrences")
+
+        add_occurrence(event.overrides.get(base_date), is_base=True)
+
+        for date, override in event.overrides.items():
+            if date == base_date:
+                continue
+            add_occurrence(override, is_base=False)
+
+        if not occurrences and not event.overrides:
+            occurrences.append(replace(event))
+        return occurrences
 
 
 class ParticipantService:
@@ -191,16 +273,19 @@ class ParticipantService:
         event = self._event_service._get_event(event_id)
         _require(participant.email, "participant email is required")
         event.participants[participant.id] = participant
+        self._event_service._storage.save_event(event)
 
     def remove_participant(self, event_id: str, participant_id: str) -> None:
         event = self._event_service._get_event(event_id)
         if participant_id in event.participants:
             del event.participants[participant_id]
+            self._event_service._storage.save_event(event)
 
     def update_participant(self, event_id: str, participant_id: str, response: Optional[str] = None) -> None:
         event = self._event_service._get_event(event_id)
         _require(participant_id in event.participants, "participant does not exist on event")
         event.participants[participant_id] = event.participants[participant_id].update(response=response)
+        self._event_service._storage.save_event(event)
 
 
 class DSLExecutor:
@@ -234,6 +319,7 @@ class DSLExecutor:
         _require(tokens, "empty line")
         command = tokens[0].upper()
         args = self._parse_args(tokens[1:])
+
         if command == "CREATE_CALENDAR":
             self._validate_args(command, args, required={"name", "owners"}, optional={"description"})
             owners = self._split_list(args.get("owners", ""))
@@ -243,11 +329,13 @@ class DSLExecutor:
                 description=args.get("description"),
             )
             return f"CALENDAR {calendar_id}"
+
         if command == "LIST_CALENDARS":
             self._validate_args(command, args, required=set(), optional={"owner"})
             calendars = self.calendar_service.list_calendars(owner=args.get("owner"))
             calendar_ids = ",".join(calendar["id"] for calendar in calendars) or "<none>"
             return f"CALENDARS {calendar_ids}"
+
         if command == "CREATE_EVENT":
             self._validate_args(
                 command,
@@ -269,6 +357,7 @@ class DSLExecutor:
                 metadata=self._parse_metadata(args.get("metadata")) if "metadata" in args else None,
             )
             return f"EVENT {event_id}"
+
         if command == "UPDATE_EVENT":
             self._validate_args(
                 command,
@@ -295,28 +384,39 @@ class DSLExecutor:
                 updates["metadata"] = self._parse_metadata(args.get("metadata"))
             self.event_service.update_event(args["event"], **updates)
             return f"EVENT {args['event']} UPDATED"
+
         if command == "CANCEL_EVENT":
             self._validate_args(command, args, required={"event"}, optional={"occurrence"})
             event_id = args.get("event")
-            occurrence = args.get("occurrence")
-            if occurrence:
-                try:
-                    occurrence_date = dt.date.fromisoformat(occurrence)
-                except ValueError as exc:
-                    raise CalendarError(
-                        f"Invalid occurrence date: '{occurrence}'. Expected YYYY-MM-DD (e.g., 2025-01-10)."
-                    ) from exc
-            else:
-                occurrence_date = None
+            occurrence_raw = args.get("occurrence")
+            occurrence_date = (
+                self._parse_date(occurrence_raw, field_name="occurrence") if occurrence_raw else None
+            )
             self.event_service.cancel_event(event_id, occurrence=occurrence_date)
             return f"CANCELED {event_id}"
+
+        if command == "RESCHEDULE_EVENT":
+            self._validate_args(command, args, required={"event", "occurrence", "start", "end"}, optional=set())
+            event_id = args.get("event")
+            _require(event_id, "event is required for RESCHEDULE_EVENT")
+            occurrence = self._parse_date(args.get("occurrence"), field_name="occurrence")
+            start = self._parse_datetime(args.get("start"), "start")
+            end = self._parse_datetime(args.get("end"), "end")
+            self.event_service.reschedule_event(event_id, occurrence=occurrence, start=start, end=end)
+            return f"RESCHEDULED {event_id}"
+
         if command == "LIST_EVENTS":
             self._validate_args(command, args, required={"calendar"}, optional={"range_start", "range_end"})
-            range_start = self._parse_datetime(args["range_start"], "range_start") if "range_start" in args else None
-            range_end = self._parse_datetime(args["range_end"], "range_end") if "range_end" in args else None
+            range_start = (
+                self._parse_datetime(args.get("range_start"), "range_start") if "range_start" in args else None
+            )
+            range_end = (
+                self._parse_datetime(args.get("range_end"), "range_end") if "range_end" in args else None
+            )
             events = self.event_service.list_events(args["calendar"], range_start=range_start, range_end=range_end)
             event_ids = ",".join(event.id for event in events) or "<none>"
             return f"EVENTS {event_ids}"
+
         if command == "ADD_PARTICIPANT":
             participant_service = self._require_participant_service()
             event_id = args.get("event")
@@ -337,6 +437,7 @@ class DSLExecutor:
             participant = Participant(id=participant_id, name=name, email=email, response=response)
             participant_service.add_participant(event_id, participant)
             return f"PARTICIPANT {participant_id} ADDED"
+
         if command == "UPDATE_PARTICIPANT":
             participant_service = self._require_participant_service()
             event_id = args.get("event")
@@ -347,6 +448,7 @@ class DSLExecutor:
             _require(participant_id, "participant id is required for UPDATE_PARTICIPANT")
             participant_service.update_participant(event_id, participant_id, response=response)
             return f"PARTICIPANT {participant_id} UPDATED"
+
         if command == "REMOVE_PARTICIPANT":
             participant_service = self._require_participant_service()
             event_id = args.get("event")
@@ -356,102 +458,8 @@ class DSLExecutor:
             _require(participant_id, "participant id is required for REMOVE_PARTICIPANT")
             participant_service.remove_participant(event_id, participant_id)
             return f"PARTICIPANT {participant_id} REMOVED"
+
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
-    def _parse_args(tokens: List[str]) -> Dict[str, str]:
-        args: Dict[str, str] = {}
-        for token in tokens:
-            if "=" not in token:
-                raise CalendarError(f"Invalid token '{token}'. Use key=value format; wrap spaces in quotes.")
-            key, value = token.split("=", 1)
-            args[key] = value
-        return args
-
-    @staticmethod
-    def _tokenize(line: str) -> List[str]:
-        try:
-            return shlex.split(line)
-        except ValueError as exc:
-            raise CalendarError(
-                f"Unable to parse line. {exc}. Wrap values containing spaces in quotes (e.g., title=\"Team Sync\")."
-            ) from exc
-
-    @staticmethod
-    def _parse_datetime(value: Optional[str], field_name: str) -> dt.datetime:
-        _require(
-            value,
-            f"{field_name} must be provided in ISO 8601 format (e.g., {field_name}=2025-01-01T10:00Z)",
-        )
-        try:
-            parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise CalendarError(
-                f"Invalid datetime format for {field_name}: '{value}'. Use ISO 8601 (e.g., 2025-01-01T10:00Z)."
-            ) from exc
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=dt.timezone.utc)
-        return parsed
-
-    @staticmethod
-    def _parse_metadata(value: Optional[str]) -> Dict[str, object]:
-        _require(
-            value is not None,
-            "metadata is required when provided; supply JSON object (e.g., metadata='{\"team\":\"core\"}')",
-        )
-        try:
-            metadata_obj = json.loads(value)
-        except json.JSONDecodeError as exc:
-            raise CalendarError(
-                f"metadata must be valid JSON object (e.g., metadata='{{\"team\":\"core\"}}'): {exc}"
-            ) from exc
-        _require(isinstance(metadata_obj, Mapping), "metadata must be a JSON object mapping keys to values")
-        return dict(metadata_obj)
-
-    @staticmethod
-    def _split_list(value: str) -> List[str]:
-        items = [item for item in (value.split(",") if value else []) if item]
-        _require(items, "At least one value must be provided (comma-separated)")
-        return items
-
-    @staticmethod
-    def _unknown_command_message(command: str) -> str:
-        allowed = [
-            "CREATE_CALENDAR",
-            "LIST_CALENDARS",
-            "CREATE_EVENT",
-            "UPDATE_EVENT",
-            "CANCEL_EVENT",
-            "LIST_EVENTS",
-            "ADD_PARTICIPANT",
-            "UPDATE_PARTICIPANT",
-            "REMOVE_PARTICIPANT",
-        ]
-        hint = ", ".join(allowed)
-        return f"Unknown command '{command}'. Supported commands: {hint}."
-
-    @staticmethod
-    def _validate_args(command: str, args: Dict[str, str], required: set[str], optional: set[str]) -> None:
-        allowed = required | optional
-        unknown = set(args) - allowed
-        if unknown:
-            allowed_str = ", ".join(sorted(allowed)) or "none"
-            unknown_str = ", ".join(sorted(unknown))
-            raise CalendarError(
-                f"{command} received unknown arguments: {unknown_str}. Allowed keys: {allowed_str}. Remove the extras."
-            )
-        missing = [key for key in required if not args.get(key)]
-        if missing:
-            missing_str = ", ".join(sorted(missing))
-            allowed_str = ", ".join(sorted(required | optional))
-            raise CalendarError(
-                f"{command} is missing required arguments: {missing_str}. "
-                f"Provide all required keys: {allowed_str}."
-            )
-
-    def _require_participant_service(self) -> ParticipantService:
-        if self.participant_service is None:
-            raise CalendarError(
-                "Participant service is not configured. Provide a ParticipantService when constructing DSLExecutor."
-            )
-        return self.participant_service
+    def _par_

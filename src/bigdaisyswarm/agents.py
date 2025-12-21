@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -94,6 +96,74 @@ REQUIRED_AGENT_NAMES = (
     "NoteTaker",
     "Arbiter",
 )
+
+DEFAULT_AGENT_DEFINITIONS_PATH = Path(__file__).resolve().parents[2] / "agents" / "AGENTS.json"
+
+
+def load_agent_types_from_json(definitions: Mapping[str, Any]) -> List[AgentType]:
+    if not isinstance(definitions, Mapping):
+        raise ValueError("Agent definitions must be a mapping of agent name to definition")
+
+    agent_types: List[AgentType] = []
+    for agent_name, raw_definition in definitions.items():
+        if not isinstance(raw_definition, Mapping):
+            raise ValueError(f"Agent definition for '{agent_name}' must be a mapping")
+
+        parameters_data = raw_definition.get("parameters")
+        if not isinstance(parameters_data, Mapping):
+            raise ValueError(f"Agent definition for '{agent_name}' must include a 'parameters' mapping")
+
+        parameters: List[ParameterSpec] = []
+        for parameter_name, parameter_definition in parameters_data.items():
+            if not isinstance(parameter_definition, Mapping):
+                raise ValueError(
+                    f"Parameter '{parameter_name}' for agent '{agent_name}' must be a mapping"
+                )
+
+            param_type = parameter_definition.get("type")
+            if not isinstance(param_type, str) or not param_type:
+                raise ValueError(
+                    f"Parameter '{parameter_name}' for agent '{agent_name}' must declare a string 'type'"
+                )
+
+            spec = ParameterSpec(
+                name=parameter_name,
+                param_type=param_type,
+                min_value=parameter_definition.get("min"),
+                max_value=parameter_definition.get("max"),
+                default_value=parameter_definition.get("default"),
+                description=parameter_definition.get("description", ""),
+            )
+            if spec.default_value is not None:
+                spec.validate_value(spec.default_value)
+            parameters.append(spec)
+
+        agent_types.append(
+            AgentType(
+                name=agent_name,
+                description=str(raw_definition.get("description", "")),
+                parameters=parameters,
+            )
+        )
+
+    missing = set(REQUIRED_AGENT_NAMES) - {agent_type.name for agent_type in agent_types}
+    if missing:
+        raise ValueError("Agent definitions missing required types: " + ", ".join(sorted(missing)))
+
+    return agent_types
+
+
+def load_agent_types_from_file(definitions_path: Path) -> List[AgentType]:
+    if not definitions_path.is_file():
+        raise ValueError(f"Agent definitions not found at {definitions_path}")
+
+    try:
+        with definitions_path.open(encoding="utf-8") as definitions_file:
+            definitions = json.load(definitions_file)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse agent definitions at {definitions_path}: {exc}") from exc
+
+    return load_agent_types_from_json(definitions)
 
 
 def _bounded_double(name: str, description: str) -> ParameterSpec:
