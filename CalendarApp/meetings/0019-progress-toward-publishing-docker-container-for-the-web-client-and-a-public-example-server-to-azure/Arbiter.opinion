@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: Arbiter
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Architects agree on NGINX-based static hosting with explicit health + `.mjs` MIME, and on a standard-library example server exposing health, readiness, DSL, and state with optional CORS.
+  - Developer and TestEngineer delivered code, docs, and tests; Critic highlighted hardening gaps (auth/CORS/seed data).
+Position:
+  - Accept the current containerization approach as the baseline demo path; treat the example server as non-production until auth/CORS hardening steps are documented and enabled.
+  - GitHub Action deployment is welcome, but should stay behind protected environments with required secrets and matching health probes.
+Recommendations:
+  - Move forward with publishing both images to ACR and App Service using the new guides.
+  - Schedule follow-up to add hardening toggles (CORS off by default, optional auth) and to wire image-level smoke tests.
+  - Keep meeting artifacts and serialization helpers in sync when new transports are added.
+  - Gate the deploy workflow via protected branches/environments; ensure service principals have minimal scope and secrets stay in GitHub Secrets.

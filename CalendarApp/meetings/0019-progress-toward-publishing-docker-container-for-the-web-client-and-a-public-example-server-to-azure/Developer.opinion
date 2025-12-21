@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: Developer
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Implemented containerization for the static web client and shipped a runnable example HTTP server with health probes.
+  - Added shared serialization utilities to keep CLI and server state handling consistent.
+Position:
+  - Delivered `web_client/Dockerfile` + NGINX config with `.mjs` MIME mapping and `/healthz`, plus Azure ACR/App Service steps.
+  - Built `example_server/Dockerfile` that runs `python -m bigdaisyswarm.example_server`, exposing `/healthz`, `/readyz`, `/state`, and `/dsl` with optional CORS.
+  - Added `.github/workflows/azure-containers.yml` to build/push both images and update App Services using repository secrets with health probes.
+Recommendations:
+  - Keep using the example server for public demos; seed data is optional via `--no-seed`.
+  - When publishing, push both images to the same ACR and set `WEBSITES_PORT` + health check path on the web apps.
+  - Retain `pythonpath` coverage for both `src` and repo root so CLI + server imports remain stable under pytest/importlib modes.
+  - Wire the GitHub Action to required secrets (`AZURE_CREDENTIALS`, `ACR_*`, resource group, app names) and avoid printing secret material in logs.

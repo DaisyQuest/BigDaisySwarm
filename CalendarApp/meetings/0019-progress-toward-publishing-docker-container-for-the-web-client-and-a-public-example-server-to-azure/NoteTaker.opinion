@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: NoteTaker
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Architects aligned on containerizing the static client with NGINX + health responder and keeping the example server dependency-light with health + DSL endpoints.
+  - Developer implemented Dockerfiles, shared serialization helpers, and Azure docs; TestEngineer reports full pytest pass with new coverage for CORS, readiness failures, and nginx config.
+  - Critic cautioned that the example server is unauthenticated and CORS-open by default; hardening and clear labeling are required before public exposure.
+  - New GitHub Action builds/pushes both containers with secrets-only configuration; Critic urges guarded environments and least-privilege credentials.
+Position:
+  - Consensus: ship both containers via ACR/App Service, keep CORS toggle, and document health paths for slot probes.
+Recommendations:
+  - Next: add hardening guidance (auth, CORS off, seed suppression) and consider smoke tests against built images to prevent config regressions.
+  - Validate deploy workflow in staging with masked secrets, then gate production via environments/approvals.

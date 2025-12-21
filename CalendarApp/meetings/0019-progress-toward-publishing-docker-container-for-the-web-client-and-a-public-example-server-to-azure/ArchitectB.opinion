@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: ArchitectB
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - Target outcome: reproducible containers for the static client and a demo server that map cleanly onto Azure App Service health checks.
+  - Need to minimize new dependencies and keep configuration explicit for audits.
+Position:
+  - Validate MIME types and health endpoints in the web client container so Azure probes do not block slot swaps.
+  - Keep the example server’s HTTP surface narrow: health, readiness, DSL POST, and state inspection backed by storage serialization.
+Recommendations:
+  - Add an Azure deployment recipe that mirrors ACR/App Service workflows and sets `WEBSITES_PORT` plus health check paths.
+  - Ensure the example server exposes CORS as a toggle (`enable_cors`) so production-like hardening can disable it without rebuilding.
+  - Reuse shared serialization helpers to avoid drift between the CLI, server, and future transports.
+  - Ship a GitHub Actions workflow that consumes repository secrets (ACR, resource group, app names) to deploy both containers with explicit health-check configuration.

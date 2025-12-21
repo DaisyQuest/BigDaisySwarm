@@ -6,6 +6,8 @@ WEB_ROOT = Path(__file__).resolve().parents[1] / "web_client"
 CALENDAR_MODEL = WEB_ROOT / "calendar_model.mjs"
 UI_TEMPLATES = WEB_ROOT / "ui_templates.mjs"
 INDEX_HTML = WEB_ROOT / "index.html"
+DOCKERFILE = WEB_ROOT / "Dockerfile"
+NGINX_CONF = WEB_ROOT / "nginx.conf"
 
 
 def run_node_json(script: str) -> dict:
@@ -364,3 +366,14 @@ def test_index_shell_contains_regions():
     ]:
         assert marker in html
     assert '<script type="module" src="./app.js"></script>' in html
+
+
+def test_web_client_dockerfile_and_nginx_conf():
+    dockerfile_text = DOCKERFILE.read_text(encoding="utf-8")
+    assert "nginx:1.27-alpine" in dockerfile_text
+    assert "COPY web_client/nginx.conf" in dockerfile_text
+
+    nginx_text = NGINX_CONF.read_text(encoding="utf-8")
+    assert "healthz" in nginx_text
+    assert "application/javascript mjs" in nginx_text
+    assert "try_files $uri $uri/ /index.html;" in nginx_text

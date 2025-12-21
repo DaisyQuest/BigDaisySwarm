@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0019-progress-toward-publishing-docker-container-for-the-web-client-and-a-public-example-server-to-azure
+Agent: TestEngineer
+Task: progress toward publishing docker container for the web client and a public example server to Azure
+Context:
+  - New surfaces: NGINX config + Dockerfile for the web client, serialization utilities, and the example HTTP server with DSL POST + health.
+  - Regression surface includes CLI storage, web client assets, and health/readiness semantics.
+Position:
+  - Added unit coverage for the web client Docker/NGINX assets (health responder, `.mjs` MIME).
+  - Exercised the example server through happy paths (health, DSL success) and sad paths (invalid JSON, empty commands, readiness failures, CORS off).
+  - New tests validate the Azure deployment workflow references required secrets, SHA tagging, and health check paths.
+Recommendations:
+  - Continue to run `pytest --maxfail=1` from repo root; current suite (114 tests) passes after pythonpath update.
+  - For manual verification, curl `/dsl` and `/state` on the running container and confirm `/healthz` serves 200 in Azure slot probes.
+  - Consider adding integration smoke that hits the containerized NGINX image to ensure `/healthz` stays wired after config tweaks.
+  - Dry-run the GitHub Action with masked secrets to ensure ACR login and App Service container updates succeed before promoting to production.
