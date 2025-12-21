@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}                
-      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}                 # e.g. "myregistry" (NOT the full FQDN)
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }} # optional; will be overridden from Azure as source of truth
       AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
@@ -34,21 +34,31 @@ jobs:
 
       - name: Validate required secrets
         shell: bash
+        env:
+          ACR_ADMINUSER: ${{ secrets.ACR_ADMINUSER }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
           set -euo pipefail
           missing=0
+
+          # Validate env-backed values
           for var in ACR_NAME AZURE_RESOURCE_GROUP WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
             if [ -z "${!var:-}" ]; then
               echo "::error title=Missing secret::${var} is required"
               missing=1
             fi
           done
-          for sec in ACR_ADMINUSER ACR_PASSWORD; do
-            if [ -z "${{ secrets[sec] }}" ]; then
-              echo "::error title=Missing secret::${sec} is required"
-              missing=1
-            fi
-          done
+
+          # Validate admin-user secrets (must be done via env; you can't loop over secrets[] dynamically)
+          if [ -z "${ACR_ADMINUSER:-}" ]; then
+            echo "::error title=Missing secret::ACR_ADMINUSER is required"
+            missing=1
+          fi
+          if [ -z "${ACR_PASSWORD:-}" ]; then
+            echo "::error title=Missing secret::ACR_PASSWORD is required"
+            missing=1
+          fi
+
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
