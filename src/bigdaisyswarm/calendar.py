@@ -492,36 +492,41 @@ class DSLExecutor:
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
-    def _parse_datetime(value: str, field_name: str) -> dt.datetime:
+    def _parse_datetime(value: str | None, field_name: str) -> dt.datetime:
+        _require(value is not None, f"{field_name} is required")
         try:
             parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except Exception as exc:  # pragma: no cover - defensive
+        except (TypeError, ValueError) as exc:
             raise CalendarError(f"Invalid datetime format for {field_name}: {value}") from exc
         if parsed.tzinfo is None:
             raise CalendarError(f"Datetime values for {field_name} must include timezone info")
         return parsed
 
     @staticmethod
-    def _parse_date(value: str, field_name: str) -> dt.date:
+    def _parse_date(value: str | None, field_name: str) -> dt.date:
+        _require(value is not None, f"{field_name} is required")
         try:
             return dt.date.fromisoformat(value)
-        except Exception as exc:  # pragma: no cover - defensive
+        except (TypeError, ValueError) as exc:
             raise CalendarError(f"Invalid {field_name} date: Expected YYYY-MM-DD") from exc
 
     @staticmethod
-    def _parse_metadata(raw: str) -> Dict[str, object]:
+    def _parse_metadata(raw: str | None) -> Dict[str, object]:
+        _require(raw is not None, "metadata is required")
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise CalendarError("metadata must be valid JSON object") from exc
-        if not isinstance(parsed, Mapping):
+        if not isinstance(parsed, dict):
             raise CalendarError("metadata must be a JSON object mapping keys to values")
-        return dict(parsed)
+        if any(not isinstance(key, str) for key in parsed.keys()):
+            raise CalendarError("metadata keys must be strings")
+        return parsed
 
     @staticmethod
     def _tokenize(line: str) -> List[str]:
         try:
-            return shlex.split(line)
+            return shlex.split(line, posix=True)
         except ValueError as exc:
             raise CalendarError(f"Unable to parse line: {exc}") from exc
 
@@ -537,11 +542,28 @@ class DSLExecutor:
             args[key] = value
         return args
 
-    @staticmethod
-    def _validate_args(
-        command: str, args: Mapping[str, str], *, required: set[str], optional: set[str]
-    ) -> None:
-        missing = required - set(args.keys())
+    def _clean_value(self, value: str) -> str:
+        for command in self._COMMANDS:
+            marker = value.find(command)
+            if marker > 0:
+                trimmed = value[:marker]
+                if trimmed:
+                    return trimmed
+        return value
+
+    def _split_list(self, value: str | None) -> List[str]:
+        if value is None:
+            return []
+        return [item for item in value.split(",") if item]
+
+    def _validate_args(self, command: str, args: Mapping[str, str], required: set[str], optional: set[str]) -> None:
+        if command == "RESCHEDULE_EVENT":
+            has_start = "start" in args
+            has_end = "end" in args
+            if has_start ^ has_end:
+                raise CalendarError("RESCHEDULE_EVENT start and end must be provided together")
+
+        missing = sorted(required - set(args))
         if missing:
             missing_list = ", ".join(sorted(missing))
             raise CalendarError(f"{command} missing required arguments: {missing_list}")
@@ -551,6 +573,14 @@ class DSLExecutor:
             unknown_list = ", ".join(sorted(unknown))
             raise CalendarError(f"{command} received unknown arguments: {unknown_list}")
 
+    def _require_participant_service(self) -> ParticipantService:
+        if self.participant_service is None:
+            raise CalendarError("Participant service is not configured")
+        return self.participant_service
+
+    @staticmethod
+    def _unknown_command_message(command: str) -> str:
+        return f"Unknown command '{command}'"
     @staticmethod
     def _split_list(raw: str | None) -> List[str]:
         if not raw:

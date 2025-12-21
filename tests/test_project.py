@@ -271,6 +271,59 @@ def test_plan_next_meeting_rejects_invalid_meeting_id(tmp_path):
         plan_next_meeting(project_root, task="Work", meeting_id="custom-id")
 
 
+def test_kickoff_task_loads_team_config_once(tmp_path, monkeypatch):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    import bigdaisyswarm.project as project
+
+    calls = {"load": 0, "validate": 0}
+    original_load = project.load_team_config
+    original_validate = project.validate_team_config
+
+    def tracking_load(root):
+        calls["load"] += 1
+        return original_load(root)
+
+    def tracking_validate(config, agent_types=None):
+        calls["validate"] += 1
+        return original_validate(config, agent_types=agent_types)
+
+    monkeypatch.setattr(project, "load_team_config", tracking_load)
+    monkeypatch.setattr(project, "validate_team_config", tracking_validate)
+
+    kickoff_task(project_root, task="Reduce redundant validations")
+
+    assert calls == {"load": 1, "validate": 1}
+
+
+def test_plan_next_meeting_loads_team_config_once(tmp_path, monkeypatch):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+
+    import bigdaisyswarm.project as project
+
+    calls = {"load": 0, "validate": 0}
+    original_load = project.load_team_config
+    original_validate = project.validate_team_config
+
+    def tracking_load(root):
+        calls["load"] += 1
+        return original_load(root)
+
+    def tracking_validate(config, agent_types=None):
+        calls["validate"] += 1
+        return original_validate(config, agent_types=agent_types)
+
+    monkeypatch.setattr(project, "load_team_config", tracking_load)
+    monkeypatch.setattr(project, "validate_team_config", tracking_validate)
+
+    planned = plan_next_meeting(project_root, task="Plan ahead")
+    assert planned.name.startswith("0002-plan-ahead")
+
+    assert calls == {"load": 1, "validate": 1}
+
+
 def test_list_meetings_requires_directory(tmp_path):
     project_root = tmp_path / "CalendarApp"
     project_root.mkdir()
