@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0004-continue-the-project
+Agent: ArchitectB
+Task: continue the project
+Context:
+- Continue backend-first work, finalize persistence and recurrence semantics.
+- Maintain agentic workflow: new meetings via CLI, opinions preserved.
+Position:
+Recommendations:
+- Favor bespoke storage layer with clean interface and minimal dependencies; defer heavy databases until requirements stabilize.
+- Explicitly document DSL commands and edge cases (participants, recurrence) to prevent divergence across transports.
+- Ensure meeting files stay append-only; capture dissent and rationale for each design decision.

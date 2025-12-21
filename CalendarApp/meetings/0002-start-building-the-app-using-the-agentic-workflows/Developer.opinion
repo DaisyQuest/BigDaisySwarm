@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-start-building-the-app-using-the-agentic-workflows
+Agent: Developer
+Task: start building the app using the agentic workflows
+Context:
+- Need to turn backend + DSL into working app flows while following meeting/agent scaffolding rules.
+- Repo tests already exercise calendar services; we must expand coverage as new behaviors land.
+Position:
+- Start with backend feature completeness (DSL participant commands, recurrence edge cases, persistence abstraction) before UI.
+- Keep implementation simple and dependency-light while ensuring clarity for future frontends.
+Recommendations:
+- Triage backlog from spec: recurrence exceptions, timezone handling, persistence plug-in point, DSL error messages.
+- Add high-coverage tests for any new branch before merging; run `pytest --maxfail=1` for every change.
+- Use CLI to open a fresh meeting per task to capture agent input, then implement in small, reviewable commits.

@@ -80,18 +80,40 @@ def next_meeting_id(opinion_root: Path, *, slug: str) -> str:
 
 def create_meeting(opinion_root: Path, meeting_id: str, agent_ids: Sequence[str], *, task: str | None = None) -> Path:
     """Create a meeting folder with blank opinion files for the provided agents."""
+    if not agent_ids:
+        raise ValueError("At least one agent id is required to create a meeting")
+    if len(set(agent_ids)) != len(agent_ids):
+        raise ValueError("Agent ids must be unique within a meeting")
+
     meeting_path = opinion_root / meeting_id
     meeting_path.mkdir(parents=True, exist_ok=True)
+
+    summary_file = meeting_path / "summary.md"
+    if not summary_file.exists():
+        summary_file.write_text(
+            "# Meeting Summary\n\n"
+            f"Meeting: {meeting_id}\n"
+            f"Task: {task or ''}\n\n"
+            "## Outcomes\n"
+            "- \n\n"
+            "## Decisions\n"
+            "- \n\n"
+            "## Next steps\n"
+            "- \n",
+            encoding="utf-8",
+        )
 
     for agent_id in agent_ids:
         opinion_file = meeting_path / f"{agent_id}.opinion"
         if not opinion_file.exists():
             opinion_file.write_text(
                 "# Opinion\n\n"
+                f"Meeting: {meeting_id}\n"
+                f"Agent: {agent_id}\n"
                 f"Task: {task or ''}\n"
-                "Context: \n"
-                "Position: \n"
-                "Recommendations: \n",
+                "Context:\n"
+                "Position:\n"
+                "Recommendations:\n",
                 encoding="utf-8",
             )
 
@@ -123,6 +145,9 @@ def kickoff_task(project_root: Path, task: str, meeting_id: str | None = None) -
     """Create a new meeting for a task and populate opinion files with the task context."""
     if not task:
         raise ValueError("task is required to kickoff work")
+
+    if meeting_id and _extract_index(meeting_id) is None:
+        raise ValueError("meeting_id must start with a numeric prefix")
 
     team_config_path = project_root / "teamconfig.json"
     if not team_config_path.is_file():

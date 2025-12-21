@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0003-continue-developing-with-this-workflow
+Agent: Critic
+Task: continue developing with this workflow
+Context:
+- Expanding DSL and persistence introduces risk of spec drift and hidden coupling.
+- Meetings must remain additive; overwriting opinions would erase auditability.
+Position:
+- Watch for premature optimization (e.g., committing to a storage tech without clear requirements).
+- Guard against unvalidated edge cases in recurrence and participant flows.
+Recommendations:
+- Require written rationale for storage abstraction choices and DSL changes before coding.
+- Keep teamconfig/AGENTS alignment checked; run validation where possible.
+- Reject changes without corresponding tests for failure cases, not just happy paths.

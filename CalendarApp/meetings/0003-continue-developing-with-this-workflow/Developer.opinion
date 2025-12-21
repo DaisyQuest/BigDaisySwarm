@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0003-continue-developing-with-this-workflow
+Agent: Developer
+Task: continue developing with this workflow
+Context:
+- Backend + DSL exist; participant commands landed, but recurrence exceptions and persistence remain open.
+- Meetings must stay additive and test coverage must remain high.
+Position:
+- Implement in small slices with tests first; keep code simple and dependency-light.
+- Validate every CLI/DSL path end-to-end to support future frontends.
+Recommendations:
+- Outline tasks: persistence interface + default in-memory adapter, recurrence override handling, DSL coverage for new commands.
+- For each task, add tests (success/error paths) before wiring code; run `pytest --maxfail=1` locally.
+- Keep meeting opinions updated; open a new meeting for each major milestone to avoid overwriting context.

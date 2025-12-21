@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-start-building-the-app-using-the-agentic-workflows
+Agent: TestEngineer
+Task: start building the app using the agentic workflows
+Context:
+- Expanded DSL and participant logic demand branch coverage; meeting scaffolding enforces opinion files per agent.
+- Tests already exist for calendar/project modules; new workflows require additional cases.
+Position:
+- Testing must precede and accompany each feature; aim for both success and failure paths.
+- Validate meeting generation, CLI error handling, and DSL behavior with clear fixtures.
+Recommendations:
+- For each new command or validation, add parametrized tests covering happy path, missing args, and malformed inputs.
+- Keep fixtures minimal (tmp_path + in-memory services) to ensure fast runs; enforce `pytest --maxfail=1` before merging.
+- Track coverage of recurrence, participant updates, and slug generation to prevent untested branches.

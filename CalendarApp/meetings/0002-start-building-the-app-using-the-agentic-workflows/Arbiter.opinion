@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-start-building-the-app-using-the-agentic-workflows
+Agent: Arbiter
+Task: start building the app using the agentic workflows
+Context:
+- Architects push for backend-first completeness and strict meeting hygiene; Developer plans incremental, tested work.
+- Critic warns about config drift and unvalidated DSL branches; TestEngineer demands branch coverage.
+Position:
+- Proceed with backend hardening + DSL clarity before UI; every change must ship with tests and preserved opinions.
+- Use CLI-managed meetings to sequence work and avoid overwrites.
+Recommendations:
+- Action items: finalize participant/recurrence handling, define persistence strategy milestones, and extend DSL docs/tests.
+- Require `pytest --maxfail=1` before merges; reject PRs lacking new tests for new branches.
+- Open the next meeting when these items are in review to capture follow-up perspectives.

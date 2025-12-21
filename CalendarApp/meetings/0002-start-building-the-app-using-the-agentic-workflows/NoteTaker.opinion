@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-start-building-the-app-using-the-agentic-workflows
+Agent: NoteTaker
+Task: start building the app using the agentic workflows
+Context:
+- Kickoff for building CalendarApp using agentic workflow; meeting folder 0002 is prepared.
+- Architects favor backend-first completeness and strict meeting hygiene; Developer echoes incremental, test-first work.
+Position:
+- Capture each agent’s stance and consolidate into actionable steps without losing dissenting points.
+- Keep notes structured so Arbiter can call decisions quickly.
+Recommendations:
+- Summarize backend gaps (recurrence, participants, DSL) and testing expectations into a checklist.
+- Record when meetings are opened via CLI and ensure all opinion files remain intact.
+- Propose next meeting id/slug once current action items are done to maintain chronological history.

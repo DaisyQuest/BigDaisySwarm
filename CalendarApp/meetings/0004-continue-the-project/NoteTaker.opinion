@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0004-continue-the-project
+Agent: NoteTaker
+Task: continue the project
+Context:
+- Continue backend-first work, finalize persistence and recurrence semantics.
+- Maintain agentic workflow: new meetings via CLI, opinions preserved.
+Position:
+Recommendations:
+- Summarize agreed next steps: storage abstraction plan, recurrence override design, DSL/test coverage updates.
+- Track action items with owners and ensure each new meeting is opened via CLI to preserve numbering.
+- Prepare a decision log for Arbiter highlighting risks (premature storage choices, missing tests) and required outcomes.

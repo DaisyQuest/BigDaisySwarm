@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0002-start-building-the-app-using-the-agentic-workflows
+Agent: ArchitectB
+Task: start building the app using the agentic workflows
+Context:
+- Need to operationalize agent collaboration while respecting spec and zero-padded meeting folders.
+- Backend exists but DSL participant features and persistence strategy choices remain open.
+Position:
+- Favor incremental scaffolding with explicit boundaries to avoid rework when frontends appear.
+- Ensure we keep bespoke control over code paths instead of pulling extra dependencies.
+Recommendations:
+- Define a minimal “agent loop”: kickoff via CLI, gather opinions, merge into actionable tickets, then implement.
+- Lock down participant flows (add/update/remove) and document DSL semantics before UI work.
+- Create a checklist per meeting for spec compliance (agent types present, opinion files intact, tests added).
