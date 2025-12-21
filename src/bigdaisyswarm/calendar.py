@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
+import shlex
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional
@@ -212,7 +214,7 @@ class DSLExecutor:
     ) -> None:
         self.calendar_service = calendar_service
         self.event_service = event_service
-        self.participant_service = participant_service or ParticipantService(event_service)
+        self.participant_service = participant_service
 
     def execute(self, lines: Iterable[str]) -> List[str]:
         results: List[str] = []
@@ -228,22 +230,34 @@ class DSLExecutor:
         return results
 
     def _execute_line(self, line: str) -> str:
-        tokens = line.split()
+        tokens = self._tokenize(line)
         _require(tokens, "empty line")
         command = tokens[0].upper()
         args = self._parse_args(tokens[1:])
         if command == "CREATE_CALENDAR":
-            owners = args.get("owners", "").split(",") if args.get("owners") else []
+            self._validate_args(command, args, required={"name", "owners"}, optional={"description"})
+            owners = self._split_list(args.get("owners", ""))
             calendar_id = self.calendar_service.create_calendar(
                 name=args.get("name", ""),
                 owners=owners,
                 description=args.get("description"),
             )
             return f"CALENDAR {calendar_id}"
+        if command == "LIST_CALENDARS":
+            self._validate_args(command, args, required=set(), optional={"owner"})
+            calendars = self.calendar_service.list_calendars(owner=args.get("owner"))
+            calendar_ids = ",".join(calendar["id"] for calendar in calendars) or "<none>"
+            return f"CALENDARS {calendar_ids}"
         if command == "CREATE_EVENT":
+            self._validate_args(
+                command,
+                args,
+                required={"calendar", "title", "start", "end"},
+                optional={"timezone", "recurrence", "metadata"},
+            )
             calendar_id = args.get("calendar")
-            start = self._parse_datetime(args.get("start"))
-            end = self._parse_datetime(args.get("end"))
+            start = self._parse_datetime(args.get("start"), "start")
+            end = self._parse_datetime(args.get("end"), "end")
             timezone = args.get("timezone") or "UTC"
             event_id = self.event_service.create_event(
                 calendar_id=calendar_id,
@@ -252,20 +266,57 @@ class DSLExecutor:
                 end=end,
                 timezone=timezone,
                 recurrence=args.get("recurrence"),
+                metadata=self._parse_metadata(args.get("metadata")) if "metadata" in args else None,
             )
             return f"EVENT {event_id}"
+        if command == "UPDATE_EVENT":
+            self._validate_args(
+                command,
+                args,
+                required={"event"},
+                optional={"title", "start", "end", "timezone", "recurrence", "metadata"},
+            )
+            _require(
+                len(args) > 1,
+                "UPDATE_EVENT requires a field to update (title, start, end, timezone, recurrence, metadata)",
+            )
+            updates: Dict[str, object] = {}
+            if "title" in args:
+                updates["title"] = args["title"]
+            if "start" in args:
+                updates["start"] = self._parse_datetime(args.get("start"), "start")
+            if "end" in args:
+                updates["end"] = self._parse_datetime(args.get("end"), "end")
+            if "timezone" in args:
+                updates["timezone"] = args["timezone"]
+            if "recurrence" in args:
+                updates["recurrence"] = args["recurrence"]
+            if "metadata" in args:
+                updates["metadata"] = self._parse_metadata(args.get("metadata"))
+            self.event_service.update_event(args["event"], **updates)
+            return f"EVENT {args['event']} UPDATED"
         if command == "CANCEL_EVENT":
+            self._validate_args(command, args, required={"event"}, optional={"occurrence"})
             event_id = args.get("event")
             occurrence = args.get("occurrence")
             if occurrence:
                 try:
                     occurrence_date = dt.date.fromisoformat(occurrence)
                 except ValueError as exc:
-                    raise CalendarError(f"Invalid occurrence date: '{occurrence}'") from exc
+                    raise CalendarError(
+                        f"Invalid occurrence date: '{occurrence}'. Expected YYYY-MM-DD (e.g., 2025-01-10)."
+                    ) from exc
             else:
                 occurrence_date = None
             self.event_service.cancel_event(event_id, occurrence=occurrence_date)
             return f"CANCELED {event_id}"
+        if command == "LIST_EVENTS":
+            self._validate_args(command, args, required={"calendar"}, optional={"range_start", "range_end"})
+            range_start = self._parse_datetime(args["range_start"], "range_start") if "range_start" in args else None
+            range_end = self._parse_datetime(args["range_end"], "range_end") if "range_end" in args else None
+            events = self.event_service.list_events(args["calendar"], range_start=range_start, range_end=range_end)
+            event_ids = ",".join(event.id for event in events) or "<none>"
+            return f"EVENTS {event_ids}"
         if command == "ADD_PARTICIPANT":
             participant_service = self._require_participant_service()
             event_id = args.get("event")
@@ -273,6 +324,12 @@ class DSLExecutor:
             name = args.get("name")
             email = args.get("email")
             response = args.get("response")
+            self._validate_args(
+                command,
+                args,
+                required={"event", "participant", "name", "email"},
+                optional={"response"},
+            )
             _require(event_id, "event is required for ADD_PARTICIPANT")
             _require(participant_id, "participant id is required for ADD_PARTICIPANT")
             _require(name, "participant name is required for ADD_PARTICIPANT")
@@ -285,6 +342,7 @@ class DSLExecutor:
             event_id = args.get("event")
             participant_id = args.get("participant")
             response = args.get("response")
+            self._validate_args(command, args, required={"event", "participant"}, optional={"response"})
             _require(event_id, "event is required for UPDATE_PARTICIPANT")
             _require(participant_id, "participant id is required for UPDATE_PARTICIPANT")
             participant_service.update_participant(event_id, participant_id, response=response)
@@ -293,34 +351,107 @@ class DSLExecutor:
             participant_service = self._require_participant_service()
             event_id = args.get("event")
             participant_id = args.get("participant")
+            self._validate_args(command, args, required={"event", "participant"}, optional=set())
             _require(event_id, "event is required for REMOVE_PARTICIPANT")
             _require(participant_id, "participant id is required for REMOVE_PARTICIPANT")
             participant_service.remove_participant(event_id, participant_id)
             return f"PARTICIPANT {participant_id} REMOVED"
-        raise CalendarError(f"Unknown command '{command}'")
+        raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
     def _parse_args(tokens: List[str]) -> Dict[str, str]:
         args: Dict[str, str] = {}
         for token in tokens:
             if "=" not in token:
-                raise CalendarError(f"Invalid token '{token}'")
+                raise CalendarError(f"Invalid token '{token}'. Use key=value format; wrap spaces in quotes.")
             key, value = token.split("=", 1)
-            args[key] = value.strip('"')
+            args[key] = value
         return args
 
     @staticmethod
-    def _parse_datetime(value: Optional[str]) -> dt.datetime:
-        _require(value, "start and end must be provided")
+    def _tokenize(line: str) -> List[str]:
+        try:
+            return shlex.split(line)
+        except ValueError as exc:
+            raise CalendarError(
+                f"Unable to parse line. {exc}. Wrap values containing spaces in quotes (e.g., title=\"Team Sync\")."
+            ) from exc
+
+    @staticmethod
+    def _parse_datetime(value: Optional[str], field_name: str) -> dt.datetime:
+        _require(
+            value,
+            f"{field_name} must be provided in ISO 8601 format (e.g., {field_name}=2025-01-01T10:00Z)",
+        )
         try:
             parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
-            raise CalendarError(f"Invalid datetime format: '{value}'") from exc
+            raise CalendarError(
+                f"Invalid datetime format for {field_name}: '{value}'. Use ISO 8601 (e.g., 2025-01-01T10:00Z)."
+            ) from exc
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=dt.timezone.utc)
         return parsed
 
+    @staticmethod
+    def _parse_metadata(value: Optional[str]) -> Dict[str, object]:
+        _require(
+            value is not None,
+            "metadata is required when provided; supply JSON object (e.g., metadata='{\"team\":\"core\"}')",
+        )
+        try:
+            metadata_obj = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise CalendarError(
+                f"metadata must be valid JSON object (e.g., metadata='{{\"team\":\"core\"}}'): {exc}"
+            ) from exc
+        _require(isinstance(metadata_obj, Mapping), "metadata must be a JSON object mapping keys to values")
+        return dict(metadata_obj)
+
+    @staticmethod
+    def _split_list(value: str) -> List[str]:
+        items = [item for item in (value.split(",") if value else []) if item]
+        _require(items, "At least one value must be provided (comma-separated)")
+        return items
+
+    @staticmethod
+    def _unknown_command_message(command: str) -> str:
+        allowed = [
+            "CREATE_CALENDAR",
+            "LIST_CALENDARS",
+            "CREATE_EVENT",
+            "UPDATE_EVENT",
+            "CANCEL_EVENT",
+            "LIST_EVENTS",
+            "ADD_PARTICIPANT",
+            "UPDATE_PARTICIPANT",
+            "REMOVE_PARTICIPANT",
+        ]
+        hint = ", ".join(allowed)
+        return f"Unknown command '{command}'. Supported commands: {hint}."
+
+    @staticmethod
+    def _validate_args(command: str, args: Dict[str, str], required: set[str], optional: set[str]) -> None:
+        allowed = required | optional
+        unknown = set(args) - allowed
+        if unknown:
+            allowed_str = ", ".join(sorted(allowed)) or "none"
+            unknown_str = ", ".join(sorted(unknown))
+            raise CalendarError(
+                f"{command} received unknown arguments: {unknown_str}. Allowed keys: {allowed_str}. Remove the extras."
+            )
+        missing = [key for key in required if not args.get(key)]
+        if missing:
+            missing_str = ", ".join(sorted(missing))
+            allowed_str = ", ".join(sorted(required | optional))
+            raise CalendarError(
+                f"{command} is missing required arguments: {missing_str}. "
+                f"Provide all required keys: {allowed_str}."
+            )
+
     def _require_participant_service(self) -> ParticipantService:
         if self.participant_service is None:
-            raise CalendarError("Participant service is not configured")
+            raise CalendarError(
+                "Participant service is not configured. Provide a ParticipantService when constructing DSLExecutor."
+            )
         return self.participant_service
