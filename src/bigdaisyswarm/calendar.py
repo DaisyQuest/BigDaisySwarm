@@ -122,6 +122,8 @@ class EventService:
         end_utc = _normalize_datetime(end)
         _require(start_utc < end_utc, "start must be before end")
         _require(timezone, "timezone is required")
+        if metadata is not None:
+            _require(isinstance(metadata, Mapping), "metadata must be a mapping")
 
         event_id = uuid.uuid4().hex
         participant_map = {
@@ -202,9 +204,15 @@ class ParticipantService:
 class DSLExecutor:
     """Parse and execute simple DSL commands against the services."""
 
-    def __init__(self, calendar_service: CalendarService, event_service: EventService) -> None:
+    def __init__(
+        self,
+        calendar_service: CalendarService,
+        event_service: EventService,
+        participant_service: Optional[ParticipantService] = None,
+    ) -> None:
         self.calendar_service = calendar_service
         self.event_service = event_service
+        self.participant_service = participant_service or ParticipantService(event_service)
 
     def execute(self, lines: Iterable[str]) -> List[str]:
         results: List[str] = []
@@ -258,6 +266,37 @@ class DSLExecutor:
                 occurrence_date = None
             self.event_service.cancel_event(event_id, occurrence=occurrence_date)
             return f"CANCELED {event_id}"
+        if command == "ADD_PARTICIPANT":
+            participant_service = self._require_participant_service()
+            event_id = args.get("event")
+            participant_id = args.get("participant")
+            name = args.get("name")
+            email = args.get("email")
+            response = args.get("response")
+            _require(event_id, "event is required for ADD_PARTICIPANT")
+            _require(participant_id, "participant id is required for ADD_PARTICIPANT")
+            _require(name, "participant name is required for ADD_PARTICIPANT")
+            _require(email, "participant email is required for ADD_PARTICIPANT")
+            participant = Participant(id=participant_id, name=name, email=email, response=response)
+            participant_service.add_participant(event_id, participant)
+            return f"PARTICIPANT {participant_id} ADDED"
+        if command == "UPDATE_PARTICIPANT":
+            participant_service = self._require_participant_service()
+            event_id = args.get("event")
+            participant_id = args.get("participant")
+            response = args.get("response")
+            _require(event_id, "event is required for UPDATE_PARTICIPANT")
+            _require(participant_id, "participant id is required for UPDATE_PARTICIPANT")
+            participant_service.update_participant(event_id, participant_id, response=response)
+            return f"PARTICIPANT {participant_id} UPDATED"
+        if command == "REMOVE_PARTICIPANT":
+            participant_service = self._require_participant_service()
+            event_id = args.get("event")
+            participant_id = args.get("participant")
+            _require(event_id, "event is required for REMOVE_PARTICIPANT")
+            _require(participant_id, "participant id is required for REMOVE_PARTICIPANT")
+            participant_service.remove_participant(event_id, participant_id)
+            return f"PARTICIPANT {participant_id} REMOVED"
         raise CalendarError(f"Unknown command '{command}'")
 
     @staticmethod
@@ -280,3 +319,8 @@ class DSLExecutor:
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=dt.timezone.utc)
         return parsed
+
+    def _require_participant_service(self) -> ParticipantService:
+        if self.participant_service is None:
+            raise CalendarError("Participant service is not configured")
+        return self.participant_service

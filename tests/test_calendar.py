@@ -51,6 +51,12 @@ def test_create_event_validates_inputs():
     with pytest.raises(CalendarError):
         event_service.create_event(calendar_id, "Bad", naive_start, end, timezone="UTC")
 
+    with pytest.raises(CalendarError):
+        event_service.create_event(calendar_id, "Bad", "not-a-datetime", end, timezone="UTC")  # type: ignore[arg-type]
+
+    with pytest.raises(CalendarError):
+        event_service.create_event(calendar_id, "Bad", start, end, timezone="UTC", metadata="metadata")  # type: ignore[arg-type]
+
 
 def test_update_and_cancel_event():
     _, event_service, _, calendar_id = make_services()
@@ -94,6 +100,12 @@ def test_event_range_filtering():
     )
     assert len(window) == 1
     assert window[0].title == "Retro"
+
+    start_only = event_service.list_events(calendar_id, range_start=start - dt.timedelta(hours=1))
+    assert len(start_only) == 2
+
+    end_only = event_service.list_events(calendar_id, range_end=end - dt.timedelta(minutes=30))
+    assert len(end_only) == 1
 
 
 def test_participant_operations():
@@ -139,6 +151,10 @@ def test_dsl_executor_success_and_errors():
 
     with pytest.raises(CalendarError):
         executor._execute_line("UNKNOWN_CMD foo=bar")
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(["CREATE_CALENDAR name=Work invalid"])
+    assert "Invalid token" in str(excinfo.value)
 
 
 def test_calendar_validation_errors():
@@ -191,3 +207,41 @@ def test_dsl_executor_reports_parsing_errors():
     with pytest.raises(CalendarError) as excinfo:
         executor.execute([f"CANCEL_EVENT event={calendar_id} occurrence=13-2025-01"])
     assert "Invalid occurrence date" in str(excinfo.value)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute([f"CREATE_EVENT calendar={calendar_id} title=Bad end=2025-01-01T11:00Z timezone=UTC"])
+    assert "start and end must be provided" in str(excinfo.value)
+
+
+def test_dsl_executor_participant_commands():
+    calendar_service = CalendarService()
+    event_service = EventService(calendar_service)
+    participant_service = ParticipantService(event_service)
+    executor = DSLExecutor(calendar_service, event_service, participant_service=participant_service)
+
+    results = executor.execute(["CREATE_CALENDAR name=Work owners=alice@example.com"])
+    calendar_id = results[0].split()[1]
+    event_result = executor.execute(
+        [f"CREATE_EVENT calendar={calendar_id} title=Kickoff start=2025-01-01T10:00Z end=2025-01-01T11:00Z timezone=UTC"]
+    )
+    event_id = event_result[0].split()[1]
+
+    add_result = executor.execute(
+        [f"ADD_PARTICIPANT event={event_id} participant=alice name=Alice email=alice@example.com response=accepted"]
+    )
+    assert add_result[0] == "PARTICIPANT alice ADDED"
+
+    update_result = executor.execute(
+        [f"UPDATE_PARTICIPANT event={event_id} participant=alice response=declined"]
+    )
+    assert update_result[0] == "PARTICIPANT alice UPDATED"
+
+    remove_result = executor.execute(
+        [f"REMOVE_PARTICIPANT event={event_id} participant=alice"]
+    )
+    assert remove_result[0] == "PARTICIPANT alice REMOVED"
+    assert "alice" not in event_service.list_events(calendar_id)[0].participants
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(["ADD_PARTICIPANT participant=missing name=Nope email=nope@example.com"])
+    assert "event is required" in str(excinfo.value)
