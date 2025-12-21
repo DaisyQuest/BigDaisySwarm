@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass, field, replace
 from typing import Dict, Iterable, List, Mapping, Optional
 
+from .storage import CalendarStorage, InMemoryCalendarStorage
+
 
 class CalendarError(ValueError):
     """Base class for calendar-specific validation errors."""
@@ -109,35 +111,38 @@ class Event:
 
 
 class CalendarService:
-    def __init__(self) -> None:
-        self._calendars: Dict[str, Dict[str, object]] = {}
+    def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
+        self._storage = storage or InMemoryCalendarStorage()
 
     def create_calendar(self, name: str, owners: Iterable[str], description: Optional[str] = None) -> str:
         _require(name, "calendar name is required")
         owners = list(owners)
         _require(owners, "at least one owner is required")
         calendar_id = uuid.uuid4().hex
-        self._calendars[calendar_id] = {
+        calendar = {
             "id": calendar_id,
             "name": name,
             "owners": owners,
             "description": description or "",
         }
+        self._storage.save_calendar(calendar)
         return calendar_id
 
     def list_calendars(self, owner: Optional[str] = None) -> List[Dict[str, object]]:
-        if owner is None:
-            return list(self._calendars.values())
-        return [c for c in self._calendars.values() if owner in c["owners"]]
+        return self._storage.list_calendars(owner=owner)
 
     def ensure_calendar_exists(self, calendar_id: str) -> None:
-        _require(calendar_id in self._calendars, f"calendar '{calendar_id}' does not exist")
+        _require(self._storage.get_calendar(calendar_id) is not None, f"calendar '{calendar_id}' does not exist")
+
+    @property
+    def storage(self) -> CalendarStorage:
+        return self._storage
 
 
 class EventService:
-    def __init__(self, calendar_service: CalendarService) -> None:
+    def __init__(self, calendar_service: CalendarService, storage: Optional[CalendarStorage] = None) -> None:
         self._calendar_service = calendar_service
-        self._events: Dict[str, Event] = {}
+        self._storage = storage or calendar_service.storage
 
     def create_event(
         self,
@@ -166,7 +171,7 @@ class EventService:
         for participant in participant_map.values():
             _require(participant.email, "participant email is required")
 
-        self._events[event_id] = Event(
+        event = Event(
             id=event_id,
             calendar_id=calendar_id,
             title=title,
@@ -177,15 +182,18 @@ class EventService:
             participants=participant_map,
             metadata=dict(metadata or {}),
         )
+        self._storage.save_event(event)
         return event_id
 
     def update_event(self, event_id: str, **fields: object) -> None:
         event = self._get_event(event_id)
         event.update(**fields)
+        self._storage.save_event(event)
 
     def cancel_event(self, event_id: str, occurrence: Optional[dt.date] = None) -> None:
         event = self._get_event(event_id)
         event.cancel(occurrence=occurrence)
+        self._storage.save_event(event)
 
     def reschedule_event(
         self, event_id: str, occurrence: dt.date, start: dt.datetime, end: dt.datetime
@@ -200,7 +208,7 @@ class EventService:
         range_end: Optional[dt.datetime] = None,
     ) -> List[Event]:
         self._calendar_service.ensure_calendar_exists(calendar_id)
-        events = [event for event in self._events.values() if event.calendar_id == calendar_id]
+        events = self._storage.list_events(calendar_id)
         if range_start or range_end:
             if range_start:
                 range_start = _normalize_datetime(range_start)
@@ -227,8 +235,9 @@ class EventService:
         return results
 
     def _get_event(self, event_id: str) -> Event:
-        _require(event_id in self._events, f"event '{event_id}' does not exist")
-        return self._events[event_id]
+        event = self._storage.get_event(event_id)
+        _require(event is not None, f"event '{event_id}' does not exist")
+        return event
 
     def _render_occurrences(self, event: Event) -> List[Event]:
         base_date = event.start.date()
@@ -264,16 +273,19 @@ class ParticipantService:
         event = self._event_service._get_event(event_id)
         _require(participant.email, "participant email is required")
         event.participants[participant.id] = participant
+        self._event_service._storage.save_event(event)
 
     def remove_participant(self, event_id: str, participant_id: str) -> None:
         event = self._event_service._get_event(event_id)
         if participant_id in event.participants:
             del event.participants[participant_id]
+            self._event_service._storage.save_event(event)
 
     def update_participant(self, event_id: str, participant_id: str, response: Optional[str] = None) -> None:
         event = self._event_service._get_event(event_id)
         _require(participant_id in event.participants, "participant does not exist on event")
         event.participants[participant_id] = event.participants[participant_id].update(response=response)
+        self._event_service._storage.save_event(event)
 
 
 class DSLExecutor:
