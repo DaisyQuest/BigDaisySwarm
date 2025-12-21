@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           missing=0
 
-          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP APP_SERVICE_PLAN ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
+          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
             if [ -z "${!var:-}" ]; then
               echo "::error title=Missing secret::${var} is required"
               missing=1
