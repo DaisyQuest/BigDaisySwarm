@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}                 # e.g. "myregistry" (not the full FQDN)
-      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }} # optional; will be overridden from Azure as source of truth
+      ACR_NAME: ${{ secrets.ACR_NAME }}                
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
       AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
@@ -43,7 +43,6 @@ jobs:
               missing=1
             fi
           done
-          # These are required for admin-user login
           for sec in ACR_ADMINUSER ACR_PASSWORD; do
             if [ -z "${{ secrets[sec] }}" ]; then
               echo "::error title=Missing secret::${sec} is required"
