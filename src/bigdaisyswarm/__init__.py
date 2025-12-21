@@ -17,7 +17,10 @@ from .calendar import (
     Participant,
     ParticipantService,
 )
+
+
 from .storage import CalendarStorage, InMemoryCalendarStorage
+
 
 from .project import append_summary_update, create_meeting, record_summary_update, scaffold_project, write_team_config
 
@@ -30,6 +33,10 @@ __all__ = [
     "create_meeting",
     "default_agent_types",
     "default_team_config",
+    "kickoff_task",
+    "latest_meeting_path",
+    "list_meetings",
+    "plan_next_meeting",
     "record_summary_update",
     "scaffold_project",
     "validate_team_config",
