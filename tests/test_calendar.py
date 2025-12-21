@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 
 import pytest
 
@@ -476,6 +477,90 @@ def test_dsl_executor_participant_commands():
     with pytest.raises(CalendarError) as excinfo:
         executor.execute(["ADD_PARTICIPANT participant=missing name=Nope email=nope@example.com"])
     assert "missing required arguments" in str(excinfo.value)
+
+
+def test_dsl_executor_create_event_with_inline_participants():
+    calendar_service = CalendarService()
+    event_service = EventService(calendar_service)
+    executor = DSLExecutor(calendar_service, event_service)
+
+    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"])
+    participants_json = json.dumps(
+        [
+            {"id": "alice", "name": "Alice", "email": "alice@example.com", "response": "accepted"},
+            {"id": "bob", "name": "Bob", "email": "bob@example.com"},
+        ],
+        separators=(",", ":"),
+    )
+    start = dt.datetime(2025, 4, 1, 9, 0, tzinfo=dt.timezone.utc)
+    end = dt.datetime(2025, 4, 1, 10, 0, tzinfo=dt.timezone.utc)
+    result = executor.execute(
+        [
+            f"CREATE_EVENT calendar={calendar_id} title=Planning start={start.isoformat()} "
+            f"end={end.isoformat()} timezone=UTC participants='{participants_json}'"
+        ]
+    )
+    event_id = result[0].split()[1]
+    event = event_service.list_events(calendar_id)[0]
+    assert event.id == event_id
+    assert set(event.participants.keys()) == {"alice", "bob"}
+    assert event.participants["alice"].response == "accepted"
+
+
+def test_dsl_executor_rejects_invalid_participant_payloads():
+    calendar_service = CalendarService()
+    event_service = EventService(calendar_service)
+    executor = DSLExecutor(calendar_service, event_service)
+    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"])
+    start = dt.datetime(2025, 4, 1, 9, 0, tzinfo=dt.timezone.utc)
+    end = dt.datetime(2025, 4, 1, 10, 0, tzinfo=dt.timezone.utc)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Bad start={start.isoformat()} end={end.isoformat()} "
+                f"timezone=UTC participants=not-json"
+            ]
+        )
+    assert "participants must be valid JSON array" in str(excinfo.value)
+    assert "Line 1" in str(excinfo.value)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Bad start={start.isoformat()} end={end.isoformat()} "
+                f"timezone=UTC participants='{{\"id\":\"only\"}}'"
+            ]
+        )
+    assert "participants must be a JSON array" in str(excinfo.value)
+    assert "Line 1" in str(excinfo.value)
+
+    missing_fields = json.dumps([{"id": "alice"}])
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Bad start={start.isoformat()} end={end.isoformat()} "
+                f"timezone=UTC participants='{missing_fields}'"
+            ]
+        )
+    assert "missing required field 'name'" in str(excinfo.value)
+    assert "Line 1" in str(excinfo.value)
+
+    duplicates = json.dumps(
+        [
+            {"id": "alice", "name": "Alice", "email": "alice@example.com"},
+            {"id": "alice", "name": "Alice Clone", "email": "alice.clone@example.com"},
+        ]
+    )
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(
+            [
+                f"CREATE_EVENT calendar={calendar_id} title=Bad start={start.isoformat()} end={end.isoformat()} "
+                f"timezone=UTC participants='{duplicates}'"
+            ]
+        )
+    assert "duplicate id" in str(excinfo.value)
+    assert "Line 1" in str(excinfo.value)
 
 
 def test_dsl_executor_rejects_metadata_and_participant_misuse():

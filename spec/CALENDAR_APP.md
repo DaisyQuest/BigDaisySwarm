@@ -38,6 +38,14 @@ These services should share a storage-agnostic interface so frontends can swap p
   - `CREATE_EVENT calendar=work title="Standup" start=2025-01-10T14:00Z end=2025-01-10T14:15Z recurrence="RRULE:FREQ=DAILY;COUNT=5"`
   - `CANCEL_EVENT event=evt_123 occurrence=2025-01-12`
 - **Execution:** The backend parses DSL statements into service calls. Errors include line numbers and hints (e.g., missing required fields, invalid recurrence rules).
+- **Reference:** See `API_SURFACE.md` for a command-by-command breakdown, including inline participant creation and validation expectations.
+
+## Deployment and security expectations
+- The **main cloud server** targets Azure App Service for Containers with PostgreSQL (no Redis) to keep cost and complexity low while supporting TLS 1.3 and slot-based rollouts. See `DEPLOYMENT_SPEC.md` for environment contracts and `DEPLOYMENT_GUIDE.md` for step-by-step rollout and local parity instructions.
+- A **testing surface** is provided by the staging deployment slot; smoke tests must pass there before swapping to production.
+- All transports validate OpenID Connect tokens (authorization code + PKCE) per `SECURITY_AND_IDENTITY.md`, with ES256/RS256 signatures, JWKS rotation, and scope-based access control.
+- Local builds (Compose or `uvicorn` directly) must mirror the same token validation flow using a development-friendly issuer or static JWKS.
+- Production readiness gates and incident playbooks are documented in `PRODUCTION_READINESS.md`; slot swaps and backup drills must follow that checklist.
 
 ## Frontend order and expectations
 1. **HTML + JS (vanilla):** Proves the API and DSL in a simple, portable environment.

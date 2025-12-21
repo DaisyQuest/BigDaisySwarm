@@ -62,13 +62,6 @@ class Event:
     overrides: Dict[dt.date, OccurrenceOverride] = field(default_factory=dict)
     canceled: bool = False
 
-    @property
-    def canceled_occurrences(self) -> set[dt.date]:
-        canceled_dates = {date for date, override in self.overrides.items() if override.canceled}
-        if self.canceled:
-            canceled_dates.add(self.start.date())
-        return canceled_dates
-
     def update(self, **fields: object) -> None:
         if "title" in fields:
             _require(fields["title"], "title cannot be empty")
@@ -368,12 +361,15 @@ class DSLExecutor:
                 command,
                 args,
                 required={"calendar", "title", "start", "end"},
-                optional={"timezone", "recurrence", "metadata"},
+                optional={"timezone", "recurrence", "metadata", "participants"},
             )
             calendar_id = args.get("calendar")
             start = self._parse_datetime(args.get("start"), "start")
             end = self._parse_datetime(args.get("end"), "end")
             timezone = args.get("timezone") or "UTC"
+            participants = (
+                self._parse_participants(args.get("participants")) if "participants" in args else None
+            )
             event_id = self.event_service.create_event(
                 calendar_id=calendar_id,
                 title=args.get("title", ""),
@@ -382,6 +378,7 @@ class DSLExecutor:
                 timezone=timezone,
                 recurrence=args.get("recurrence"),
                 metadata=self._parse_metadata(args.get("metadata")) if "metadata" in args else None,
+                participants=participants,
             )
             return f"EVENT {event_id}"
 
@@ -522,6 +519,45 @@ class DSLExecutor:
         if any(not isinstance(key, str) for key in parsed.keys()):
             raise CalendarError("metadata keys must be strings")
         return parsed
+
+    def _parse_participants(self, raw: str | None) -> List[Participant]:
+        _require(raw is not None, "participants is required")
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise CalendarError("participants must be valid JSON array of participant objects") from exc
+        if not isinstance(parsed, list):
+            raise CalendarError("participants must be a JSON array")
+
+        participants: List[Participant] = []
+        seen_ids: set[str] = set()
+        for index, entry in enumerate(parsed):
+            if not isinstance(entry, Mapping):
+                raise CalendarError(f"participants[{index}] must be an object with id, name, and email")
+            participant_id = entry.get("id")
+            name = entry.get("name")
+            email = entry.get("email")
+            _require(participant_id, f"participants[{index}] missing required field 'id'")
+            _require(name, f"participants[{index}] missing required field 'name'")
+            _require(email, f"participants[{index}] missing required field 'email'")
+
+            participant_id = str(participant_id)
+            if participant_id in seen_ids:
+                raise CalendarError(f"participants contains duplicate id '{participant_id}'")
+            seen_ids.add(participant_id)
+
+            response_raw = entry.get("response")
+            response = str(response_raw) if response_raw is not None else None
+            participants.append(
+                Participant(
+                    id=participant_id,
+                    name=str(name),
+                    email=str(email),
+                    response=response,
+                )
+            )
+
+        return participants
 
     @staticmethod
     def _tokenize(line: str) -> List[str]:
