@@ -63,8 +63,11 @@ class Event:
     canceled: bool = False
 
     @property
-    def canceled_occurrences(self) -> List[dt.date]:
-        return sorted(date for date, override in self.overrides.items() if override.canceled)
+    def canceled_occurrences(self) -> set[dt.date]:
+        canceled_dates = {date for date, override in self.overrides.items() if override.canceled}
+        if self.canceled:
+            canceled_dates.add(self.start.date())
+        return canceled_dates
 
     def update(self, **fields: object) -> None:
         if "title" in fields:
@@ -121,6 +124,7 @@ class Event:
         if self.canceled:
             canceled.add(self.start.date())
         return canceled
+
 
 
 class CalendarService:
@@ -424,6 +428,7 @@ class DSLExecutor:
                 raise CalendarError("RESCHEDULE_EVENT start and end must be provided")
             event_id = args.get("event")
             _require(event_id, "event is required for RESCHEDULE_EVENT")
+            _require("start" in args and "end" in args, "start and end must be provided")
             occurrence = self._parse_date(args.get("occurrence"), field_name="occurrence")
             start = self._parse_datetime(args.get("start"), "start")
             end = self._parse_datetime(args.get("end"), "end")
@@ -525,18 +530,15 @@ class DSLExecutor:
         except ValueError as exc:
             raise CalendarError(f"Unable to parse line: {exc}") from exc
 
-    def _parse_args(self, tokens: Iterable[str]) -> Dict[str, str]:
+    @staticmethod
+    def _parse_args(tokens: List[str]) -> Dict[str, str]:
         args: Dict[str, str] = {}
         for token in tokens:
             if "=" not in token:
-                raise CalendarError(f"Invalid token '{token}' (expected key=value)")
+                raise CalendarError(f"Invalid token '{token}'. Expected key=value pairs")
             key, value = token.split("=", 1)
-            if not key:
-                raise CalendarError("Argument name cannot be empty")
-            value = self._clean_value(value)
-            if key in args:
-                continue
-            args[key] = value
+            if key not in args:
+                args[key] = value
         return args
 
     def _clean_value(self, value: str) -> str:
@@ -562,14 +564,13 @@ class DSLExecutor:
 
         missing = sorted(required - set(args))
         if missing:
-            missing_msg = ", ".join(missing)
-            raise CalendarError(f"{command} missing required arguments: {missing_msg}")
+            missing_list = ", ".join(sorted(missing))
+            raise CalendarError(f"{command} missing required arguments: {missing_list}")
 
-        allowed = required | optional
-        unknown = sorted(set(args) - allowed)
+        unknown = set(args.keys()) - required - optional
         if unknown:
-            unknown_msg = ", ".join(unknown)
-            raise CalendarError(f"{command} has unknown arguments: {unknown_msg}")
+            unknown_list = ", ".join(sorted(unknown))
+            raise CalendarError(f"{command} received unknown arguments: {unknown_list}")
 
     def _require_participant_service(self) -> ParticipantService:
         if self.participant_service is None:
@@ -579,3 +580,50 @@ class DSLExecutor:
     @staticmethod
     def _unknown_command_message(command: str) -> str:
         return f"Unknown command '{command}'"
+    @staticmethod
+    def _split_list(raw: str | None) -> List[str]:
+        if not raw:
+            return []
+        return [entry for entry in raw.split(",") if entry]
+
+    @staticmethod
+    def _parse_datetime(raw: str | None, field_name: str) -> dt.datetime:
+        if not raw:
+            raise CalendarError(f"{field_name} is required")
+        try:
+            normalized = raw.replace("Z", "+00:00")
+            value = dt.datetime.fromisoformat(normalized)
+        except ValueError as exc:
+            raise CalendarError(f"Invalid datetime format for {field_name}") from exc
+        return _normalize_datetime(value)
+
+    @staticmethod
+    def _parse_date(raw: str | None, *, field_name: str) -> dt.date:
+        if not raw:
+            raise CalendarError(f"{field_name} must be provided")
+        try:
+            return dt.date.fromisoformat(raw)
+        except ValueError as exc:
+            raise CalendarError(f"Invalid {field_name} date. Expected YYYY-MM-DD") from exc
+
+    @staticmethod
+    def _parse_metadata(raw: str | None) -> Dict[str, object]:
+        if raw is None:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise CalendarError("metadata must be valid JSON object") from exc
+
+        if not isinstance(parsed, dict):
+            raise CalendarError("metadata must be a JSON object mapping keys to values")
+        return parsed
+
+    def _require_participant_service(self) -> ParticipantService:
+        if self.participant_service is None:
+            raise CalendarError("Participant service is not configured")
+        return self.participant_service
+
+    @staticmethod
+    def _unknown_command_message(command: str) -> str:
+        return f"Unknown command: {command}"

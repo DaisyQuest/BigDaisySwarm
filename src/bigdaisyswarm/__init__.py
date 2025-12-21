@@ -18,7 +18,18 @@ from .calendar import (
     ParticipantService,
 )
 
-
+from .project import (
+    append_summary_update,
+    create_meeting,
+    kickoff_task,
+    latest_meeting_path,
+    list_meetings,
+    plan_next_meeting,
+    record_summary_update,
+    scaffold_project,
+    write_team_config,
+)
+from .publishing import PublishingChannel, PublishingPipeline, PublishingStage
 from .storage import CalendarStorage, InMemoryCalendarStorage
 
 
@@ -62,4 +73,7 @@ __all__ = [
     "ParticipantService",
     "CalendarStorage",
     "InMemoryCalendarStorage",
+    "PublishingChannel",
+    "PublishingPipeline",
+    "PublishingStage",
 ]
