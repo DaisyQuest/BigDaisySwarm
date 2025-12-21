@@ -123,6 +123,7 @@ class Event:
         return canceled
 
 
+
 class CalendarService:
     def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
         self._storage = storage or InMemoryCalendarStorage()
