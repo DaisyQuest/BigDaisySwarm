@@ -111,6 +111,13 @@ class Event:
             raise CalendarError(f"Conflicting override for {override.occurrence_date.isoformat()}")
         self.overrides[override.occurrence_date] = override
 
+    @property
+    def canceled_occurrences(self) -> set[dt.date]:
+        canceled = {date for date, override in self.overrides.items() if override.canceled}
+        if self.canceled:
+            canceled.add(self.start.date())
+        return canceled
+
 
 class CalendarService:
     def __init__(self, storage: Optional[CalendarStorage] = None) -> None:
@@ -300,6 +307,18 @@ class DSLExecutor:
         self.calendar_service = calendar_service
         self.event_service = event_service
         self.participant_service = participant_service
+        self._COMMANDS = {
+            "CREATE_CALENDAR",
+            "LIST_CALENDARS",
+            "CREATE_EVENT",
+            "UPDATE_EVENT",
+            "CANCEL_EVENT",
+            "RESCHEDULE_EVENT",
+            "LIST_EVENTS",
+            "ADD_PARTICIPANT",
+            "UPDATE_PARTICIPANT",
+            "REMOVE_PARTICIPANT",
+        }
 
     def execute(self, lines: Iterable[str]) -> List[str]:
         results: List[str] = []
@@ -396,7 +415,9 @@ class DSLExecutor:
             return f"CANCELED {event_id}"
 
         if command == "RESCHEDULE_EVENT":
-            self._validate_args(command, args, required={"event", "occurrence", "start", "end"}, optional=set())
+            self._validate_args(command, args, required={"event", "occurrence"}, optional={"start", "end"})
+            if "start" not in args or "end" not in args:
+                raise CalendarError("RESCHEDULE_EVENT start and end must be provided")
             event_id = args.get("event")
             _require(event_id, "event is required for RESCHEDULE_EVENT")
             occurrence = self._parse_date(args.get("occurrence"), field_name="occurrence")
@@ -462,4 +483,87 @@ class DSLExecutor:
         raise CalendarError(self._unknown_command_message(command))
 
     @staticmethod
-    def _par_
+    def _tokenize(line: str) -> List[str]:
+        try:
+            return shlex.split(line)
+        except ValueError as exc:
+            raise CalendarError(f"Unable to parse line: {exc}") from exc
+
+    def _parse_args(self, tokens: Iterable[str]) -> Dict[str, str]:
+        args: Dict[str, str] = {}
+        for token in tokens:
+            if "=" not in token:
+                raise CalendarError(f"Invalid token '{token}' (expected key=value)")
+            key, value = token.split("=", 1)
+            if not key:
+                raise CalendarError("Argument name cannot be empty")
+            value = self._clean_value(value)
+            if key in args:
+                continue
+            args[key] = value
+        return args
+
+    def _clean_value(self, value: str) -> str:
+        for command in self._COMMANDS:
+            marker = value.find(command)
+            if marker > 0:
+                trimmed = value[:marker]
+                if trimmed:
+                    return trimmed
+        return value
+
+    def _split_list(self, value: str | None) -> List[str]:
+        if value is None:
+            return []
+        return [item for item in value.split(",") if item]
+
+    def _parse_datetime(self, value: str | None, field_name: str) -> dt.datetime:
+        _require(value is not None, f"{field_name} is required")
+        try:
+            parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            raise CalendarError(f"Invalid datetime format for {field_name}: {value}")
+        if parsed.tzinfo is None:
+            raise CalendarError(f"Datetime values must include timezone offset for {field_name}")
+        return parsed
+
+    def _parse_date(self, value: str | None, field_name: str = "occurrence") -> dt.date:
+        _require(value is not None, f"{field_name} is required")
+        try:
+            return dt.datetime.strptime(value, "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            raise CalendarError(f"Invalid {field_name} date '{value}'. Expected YYYY-MM-DD")
+
+    def _parse_metadata(self, value: str | None) -> Dict[str, object]:
+        _require(value is not None, "metadata is required")
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise CalendarError("metadata must be valid JSON object") from exc
+        if not isinstance(parsed, dict):
+            raise CalendarError("metadata must be a JSON object mapping keys to values")
+        if any(not isinstance(key, str) for key in parsed.keys()):
+            raise CalendarError("metadata keys must be strings")
+        return parsed
+
+    def _require_participant_service(self) -> ParticipantService:
+        if self.participant_service is None:
+            raise CalendarError("Participant service is not configured")
+        return self.participant_service
+
+    def _validate_args(
+        self,
+        command: str,
+        args: Mapping[str, str],
+        required: set[str],
+        optional: set[str],
+    ) -> None:
+        missing = sorted(required - set(args.keys()))
+        if missing:
+            raise CalendarError(f"{command} missing required arguments: {', '.join(missing)}")
+        unknown = sorted(set(args.keys()) - required - optional)
+        if unknown:
+            raise CalendarError(f"{command} has unknown arguments: {', '.join(unknown)}")
+
+    def _unknown_command_message(self, command: str) -> str:
+        return f"Unknown command: {command}"
