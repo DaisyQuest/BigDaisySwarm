@@ -249,7 +249,13 @@ class DSLExecutor:
         if command == "CANCEL_EVENT":
             event_id = args.get("event")
             occurrence = args.get("occurrence")
-            occurrence_date = dt.date.fromisoformat(occurrence) if occurrence else None
+            if occurrence:
+                try:
+                    occurrence_date = dt.date.fromisoformat(occurrence)
+                except ValueError as exc:
+                    raise CalendarError(f"Invalid occurrence date: '{occurrence}'") from exc
+            else:
+                occurrence_date = None
             self.event_service.cancel_event(event_id, occurrence=occurrence_date)
             return f"CANCELED {event_id}"
         raise CalendarError(f"Unknown command '{command}'")
@@ -267,7 +273,10 @@ class DSLExecutor:
     @staticmethod
     def _parse_datetime(value: Optional[str]) -> dt.datetime:
         _require(value, "start and end must be provided")
-        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        try:
+            parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise CalendarError(f"Invalid datetime format: '{value}'") from exc
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=dt.timezone.utc)
         return parsed

@@ -159,3 +159,35 @@ def test_calendar_validation_errors():
             dt.datetime.now(tz=dt.timezone.utc) + dt.timedelta(hours=1),
             timezone="UTC",
         )
+
+
+def test_list_events_rejects_invalid_range():
+    _, event_service, _, calendar_id = make_services()
+    start = dt.datetime(2025, 1, 1, 10, 0, tzinfo=dt.timezone.utc)
+    end = dt.datetime(2025, 1, 1, 11, 0, tzinfo=dt.timezone.utc)
+    event_service.create_event(calendar_id, "Standup", start, end, timezone="UTC")
+
+    with pytest.raises(CalendarError) as excinfo:
+        event_service.list_events(
+            calendar_id,
+            range_start=end + dt.timedelta(hours=1),
+            range_end=start - dt.timedelta(hours=1),
+        )
+
+    assert "range_start must be before range_end" in str(excinfo.value)
+
+
+def test_dsl_executor_reports_parsing_errors():
+    calendar_service = CalendarService()
+    event_service = EventService(calendar_service)
+    executor = DSLExecutor(calendar_service, event_service)
+
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute(["CREATE_EVENT calendar=missing title=Bad start=not-a-date end=2025-01-01T11:00Z timezone=UTC"])
+    assert "Line 1" in str(excinfo.value)
+    assert "Invalid datetime format" in str(excinfo.value)
+
+    calendar_id = calendar_service.create_calendar("Work", owners=["alice@example.com"])
+    with pytest.raises(CalendarError) as excinfo:
+        executor.execute([f"CANCEL_EVENT event={calendar_id} occurrence=13-2025-01"])
+    assert "Invalid occurrence date" in str(excinfo.value)
