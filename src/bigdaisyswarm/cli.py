@@ -4,7 +4,13 @@ import argparse
 import sys
 from pathlib import Path
 
-from .project import kickoff_task, latest_meeting_path, list_meetings, plan_next_meeting
+from .project import (
+    kickoff_task,
+    latest_meeting_path,
+    list_meetings,
+    plan_next_meeting,
+    validate_project_teamconfig,
+)
 
 
 def _kickoff_args(subparser: argparse.ArgumentParser) -> None:
@@ -15,7 +21,6 @@ def _kickoff_args(subparser: argparse.ArgumentParser) -> None:
     )
     subparser.add_argument(
         "--task",
-        required=True,
         help='Task description (e.g., "continue developing the software")',
     )
     subparser.add_argument(
@@ -51,6 +56,13 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to the project root containing meetings/",
     )
+
+    parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate teamconfig.json against the agent definitions without creating a meeting",
+    )
+
     return parser
 
 
@@ -64,6 +76,10 @@ def main(argv: list[str] | None = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    # Only kickoff requires --task; list/latest do not.
+    if args.command == "kickoff" and not args.validate_config and not args.task:
+        parser.error("--task is required unless --validate-config is provided")
+
     try:
         if args.command == "list":
             project_root = Path(args.project_root)
@@ -76,11 +92,27 @@ def main(argv: list[str] | None = None) -> None:
             print(latest_meeting_path(project_root))
             return
 
+        # kickoff
         project_root = Path(args.project_root)
+
+        if args.validate_config:
+            validate_project_teamconfig(project_root)
+            print("Team configuration is valid.")
+            return
+
         if args.dry_run:
-            meeting_path = plan_next_meeting(project_root, task=args.task, meeting_id=args.meeting_id)
+            meeting_path = plan_next_meeting(
+                project_root,
+                task=args.task,
+                meeting_id=args.meeting_id,
+            )
         else:
-            meeting_path = kickoff_task(project_root, task=args.task, meeting_id=args.meeting_id)
+            meeting_path = kickoff_task(
+                project_root,
+                task=args.task,
+                meeting_id=args.meeting_id,
+            )
+
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
