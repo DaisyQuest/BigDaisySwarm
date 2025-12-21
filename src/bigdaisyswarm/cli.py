@@ -62,12 +62,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the project root containing meetings/",
     )
 
-    parser.add_argument(
-        "--validate-config",
-        action="store_true",
-        help="Validate teamconfig.json against the agent definitions without creating a meeting",
-    )
-
     return parser
 
 
