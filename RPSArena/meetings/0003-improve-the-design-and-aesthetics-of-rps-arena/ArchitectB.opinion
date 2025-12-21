@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0003-improve-the-design-and-aesthetics-of-rps-arena
+Agent: ArchitectB
+Task: Improve the design and aesthetics of RPS Arena
+Context:
+- RPS Arena UI refresh scoped to public assets (HTML/CSS/JS) while retaining Node API contracts and in-memory/Mongo services.
+- Design goals: stronger visual hierarchy, responsive layout, and clearer feedback loops for registration/queue/history actions.
+- Quality bar: keep `c8 --100 node --test` green, preserve zero-dependency front-end approach, and respect instructions against screenshots/Playwright.
+
+Position:
+- Elevate perceived quality through typography, gradients, and pill badges, but keep markup semantic to ensure accessibility.
+- Use componentized render helpers for repeated list markup to minimize DOM string duplication and simplify testing.
+- Reinforce navigation clarity with active states and sticky header without altering routing (still single-page with panels).
+
+Recommendations:
+- Add a top bar with brand + nav actions, hero stat grid, and richer cards to frame the forms and lists.
+- Create `viewUtils` to render news/leaderboards/highscores/history with sanitized strings; integrate these helpers inside main.js.
+- Expand CSS tokens for accent colors/glow, focus states, and responsive grids to make the arena feel premium while remaining lightweight.

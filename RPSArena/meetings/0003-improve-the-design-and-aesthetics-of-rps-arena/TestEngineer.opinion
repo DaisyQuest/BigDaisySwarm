@@ -1,0 +1,18 @@
+# Opinion
+
+Meeting: 0003-improve-the-design-and-aesthetics-of-rps-arena
+Agent: TestEngineer
+Task: Improve the design and aesthetics of RPS Arena
+Context:
+- Goal: safeguard UI refactor while preserving `c8 --100` requirement and existing API behaviors.
+- New code introduces `public/viewUtils.js` for rendering UI strings and updates `public/main.js` to rely on those helpers; no Playwright/screenshot steps allowed.
+- Test suite already covers services/game/storage; new UI helpers require deterministic coverage.
+
+Position:
+- Added `tests/uiRender.test.js` using node:test to exercise every helper branch (empty states, fallbacks, trend icons, neutral/default tones, sanitization).
+- Ensured coverage report returns 100% statements/branches/functions/lines after UI refactor; `npm test` remains the single JS test entrypoint.
+
+Recommendations:
+- Keep render helpers pure and free of DOM/window to stay testable under node:test; guard new branches with explicit cases to avoid future coverage regressions.
+- Retain `PYTHONPATH=src pytest --maxfail=1` run from repo root after touching this project per repo-wide guidance.
+- If future UI logic needs DOM interaction, consider small adapter functions while keeping core rendering logic in pure modules for coverage and determinism.

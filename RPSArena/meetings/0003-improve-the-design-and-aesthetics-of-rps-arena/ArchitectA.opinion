@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0003-improve-the-design-and-aesthetics-of-rps-arena
+Agent: ArchitectA
+Task: Improve the design and aesthetics of RPS Arena
+Context:
+- Target: refresh the RPS Arena front-end without adding frameworks; keep server-authoritative API untouched.
+- Constraints: maintain 100% coverage via `npm test` (c8 --100), avoid Playwright/screenshots per instructions, and honor meeting workflow artifacts.
+- Existing UI uses vanilla HTML/CSS/JS served by Node; new design must stay buildless and performant.
+
+Position:
+- Lean into reusable view utilities to keep templating deterministic and testable while improving visual polish.
+- Maintain semantic structure (panels/cards) so CSS enhancements (glassmorphism, gradients) don’t harm accessibility or portability.
+- Favor additive styling over structural API changes to avoid breaking existing forms/endpoints.
+
+Recommendations:
+- Introduce pure render helpers for news/leaderboard/history to decouple markup from fetch logic and enable full branch coverage.
+- Refresh the layout with a sticky nav, elevated hero stats, and clearer affordances (active nav states, pill badges) using only CSS/HTML updates.
+- Keep theme tokens centralized in CSS vars; avoid new dependencies and rely on Google Fonts only for typography improvement.

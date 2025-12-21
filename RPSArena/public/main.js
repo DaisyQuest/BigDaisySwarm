@@ -1,3 +1,5 @@
+import { renderHighscores, renderLeaderboard, renderMatchHistory, renderNews, statusMessage } from "./viewUtils.js";
+
 const registrationForm = document.getElementById("registration-form");
 const registrationFeedback = document.getElementById("registration-feedback");
 const navRegister = document.getElementById("nav-register");
@@ -22,11 +24,15 @@ const loadHighscoresButton = document.getElementById("load-highscores");
 function showHome() {
   registrationSection.classList.add("hidden");
   homeSection.classList.remove("hidden");
+  navHome.classList.add("active");
+  navRegister.classList.remove("active");
 }
 
 function showRegistration() {
   registrationSection.classList.remove("hidden");
   homeSection.classList.add("hidden");
+  navRegister.classList.add("active");
+  navHome.classList.remove("active");
 }
 
 navRegister.addEventListener("click", showRegistration);
@@ -48,8 +54,7 @@ async function api(path, options = {}) {
 }
 
 function setFeedback(el, message, isError = false) {
-  el.textContent = message;
-  el.style.color = isError ? "#ff7b7b" : "#26e2b3";
+  el.innerHTML = statusMessage(message, isError ? "error" : "success");
 }
 
 registrationForm.addEventListener("submit", async (event) => {
@@ -96,20 +101,16 @@ avatarForm.addEventListener("submit", async (event) => {
 async function loadNews() {
   try {
     const news = await api("/api/news");
-    newsFeed.innerHTML = news
-      .map((item) => `<li><strong>${item.title}</strong> — ${item.body}</li>`)
-      .join("");
+    newsFeed.innerHTML = renderNews(news);
   } catch (error) {
-    newsFeed.innerHTML = `<li class="error">${error.message}</li>`;
+    newsFeed.innerHTML = statusMessage(error.message, "error");
   }
 }
 
 async function loadLeaderboard(limit = 100, offset = 0) {
   try {
     const board = await api(`/api/leaderboard?limit=${limit}&offset=${offset}`);
-    leaderboardEl.innerHTML = board
-      .map((entry, idx) => `<li>#${offset + idx + 1} ${entry.username} — ${entry.ratings.ranked} ELO</li>`)
-      .join("");
+    leaderboardEl.innerHTML = renderLeaderboard(board, offset);
   } catch (error) {
     leaderboardEl.innerHTML = `<li>${error.message}</li>`;
   }
@@ -120,9 +121,7 @@ async function loadHighscores() {
   const size = Number(highscoreSize.value || 10);
   try {
     const scores = await api(`/api/highscores?page=${page}&pageSize=${size}`);
-    highscoresEl.innerHTML = scores
-      .map((entry, idx) => `<li>#${(page - 1) * size + idx + 1} ${entry.username} — ${entry.ratings.ranked}</li>`)
-      .join("");
+    highscoresEl.innerHTML = renderHighscores(scores, page, size);
   } catch (error) {
     highscoresEl.innerHTML = `<li>${error.message}</li>`;
   }
@@ -133,11 +132,7 @@ async function loadHistory() {
   if (!playerId) return;
   try {
     const history = await api(`/api/history?playerId=${encodeURIComponent(playerId)}&rankedOnly=true`);
-    historyContainer.innerHTML = history
-      .map(
-        (match) => `<div class="match-card">${match.mode.toUpperCase()} ${match.variant} — Winner: ${match.winner ?? "Draw"}<br />Rounds: ${match.rounds.length}</div>`,
-      )
-      .join("");
+    historyContainer.innerHTML = renderMatchHistory(history);
   } catch (error) {
     historyContainer.innerHTML = `<div class="match-card">${error.message}</div>`;
   }

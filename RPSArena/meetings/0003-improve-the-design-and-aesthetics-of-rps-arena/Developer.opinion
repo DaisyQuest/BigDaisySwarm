@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0003-improve-the-design-and-aesthetics-of-rps-arena
+Agent: Developer
+Task: Improve the design and aesthetics of RPS Arena
+Context:
+- Implemented a design refresh for the SPA: new sticky top bar with active nav states, hero stat grid, richer hero card, and updated panels/cards styling with gradients and focus affordances.
+- Added `public/viewUtils.js` with pure render helpers (news, leaderboard, highscores, match history, status messages) and rewired `public/main.js` to use them for sanitized, testable markup.
+- Expanded CSS tokens, typography (Space Grotesk), and responsive layouts; kept all functionality buildless and API-compatible.
+- Augmented tests with `tests/uiRender.test.js` covering every view helper branch to maintain c8 global 100% coverage.
+
+Position:
+- Keep front-end logic modular by separating data fetch from rendering; sanitize all UI output to guard against injection and improve reliability.
+- Prefer CSS variables and lightweight gradients/glass effects over additional JS interactions; focus on clarity for form feedback and list readability.
+
+Recommendations:
+- When extending UI further (e.g., queue polling), keep helper functions pure and covered; update tests alongside to protect branch coverage expectations.
+- Maintain nav state management in `main.js` and avoid introducing routing—panels + active buttons remain sufficient for SPA navigation.
+- Continue serving assets directly from `public/` to align with the current Node static handler; no bundler required unless scope changes.
