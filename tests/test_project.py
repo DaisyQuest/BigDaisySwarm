@@ -20,6 +20,7 @@ from bigdaisyswarm.project import (
     scaffold_project,
     validate_project_teamconfig,
     write_team_config,
+    _initial_summary_content,
     _slugify,
 )
 from bigdaisyswarm.agents import default_team_config
@@ -110,6 +111,37 @@ def test_create_meeting_preserves_existing_opinions(tmp_path):
     assert "Meeting: 0001-seeded" in developer_content
     assert "Agent: Developer" in developer_content
     assert summary.read_text(encoding="utf-8") == "Do not overwrite summary"
+
+
+def test_create_meeting_retains_existing_task_text(tmp_path):
+    meeting_root = tmp_path / "meetings"
+    meeting_path = meeting_root / "0002-retain-task"
+    meeting_path.mkdir(parents=True)
+    summary = meeting_path / "summary.md"
+    summary.write_text(
+        "# Meeting Summary\n\n"
+        "Meeting: 0002-retain-task\n"
+        "Task: Original task\n"
+        "## Outcomes\n"
+        "- Seeded entry\n",
+        encoding="utf-8",
+    )
+    opinion = meeting_path / "ArchitectA.opinion"
+    opinion.write_text(
+        "# Opinion\n\n"
+        "Meeting: 0002-retain-task\n"
+        "Agent: ArchitectA\n"
+        "Task: Original task\n"
+        "Context:\n"
+        "Position:\n"
+        "Recommendations:\n",
+        encoding="utf-8",
+    )
+
+    create_meeting(meeting_root, "0002-retain-task", ["ArchitectA"], task="New task")
+
+    assert "Task: Original task" in summary.read_text(encoding="utf-8")
+    assert "Task: Original task" in opinion.read_text(encoding="utf-8")
 
 
 def test_next_meeting_id_increments_existing_structure(tmp_path):
@@ -583,3 +615,42 @@ def test_record_summary_update_handles_missing_sections_and_requires_meeting(tmp
 
     with pytest.raises(ValueError):
         record_summary_update(project_root, "9999-missing")
+
+
+def test_kickoff_task_populates_existing_blank_templates(tmp_path):
+    project_root = tmp_path / "CalendarApp"
+    scaffold_project(project_root)
+    meeting_id = "0100-existing"
+    meeting_path = project_root / "meetings" / meeting_id
+    meeting_path.mkdir(parents=True)
+
+    summary_file = meeting_path / "summary.md"
+    summary_file.write_text(_initial_summary_content(meeting_id), encoding="utf-8")
+
+    agents = [entry["id"] for entry in default_team_config()]
+    for agent_id in agents:
+        opinion_content = (
+            "# Opinion\n\n"
+            f"Meeting: {meeting_id}\n"
+            f"Agent: {agent_id}\n"
+            "Task: \n"
+            "Context:\n"
+            "Position:\n"
+            "Recommendations:\n"
+        )
+        if agent_id == "Developer":
+            opinion_content += "Existing note\n"
+        (meeting_path / f"{agent_id}.opinion").write_text(opinion_content, encoding="utf-8")
+
+    kickoff_task(project_root, task="Backfill template tasks", meeting_id=meeting_id)
+
+    updated_summary = summary_file.read_text(encoding="utf-8")
+    assert "Task: Backfill template tasks" in updated_summary
+    assert updated_summary.count("Task: Backfill template tasks") == 1
+
+    for agent_id in agents:
+        opinion_path = meeting_path / f"{agent_id}.opinion"
+        content = opinion_path.read_text(encoding="utf-8")
+        assert "Task: Backfill template tasks" in content
+        if agent_id == "Developer":
+            assert "Existing note" in content

@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0018-update-create-meeting-to-handle-existing-templates-and-add-tests
+Agent: NoteTaker
+Task: Update create_meeting to handle existing templates and add tests
+Context:
+- Existing meeting templates sometimes lack Task text because they were created before a task was known.
+- kickoff_task should populate those templates without overwriting other fields.
+Position:
+- Capture minimal changes focused on filling in blank Task lines.
+Recommendations:
+- Use a shared helper to detect placeholder Task entries and rewrite them with the provided task.
+- Test with a preseeded meeting to ensure both summary and opinions reflect the task after kickoff.

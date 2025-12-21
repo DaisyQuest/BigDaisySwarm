@@ -119,6 +119,27 @@ def _extract_index(name: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _populate_task_if_placeholder(content: str, task: str) -> str | None:
+    """Return updated text when a blank task placeholder is present."""
+    lines = content.splitlines(keepends=True)
+    for idx, line in enumerate(lines):
+        stripped_line = line.lstrip()
+        if not stripped_line.startswith("Task:"):
+            continue
+
+        prefix_length = len(line) - len(stripped_line)
+        _, _, after_label = line.partition("Task:")
+        remainder = after_label.rstrip("\n")
+        if remainder.strip():
+            return None
+
+        newline = "\n" if line.endswith("\n") else ""
+        lines[idx] = f"{line[:prefix_length]}Task: {task}{newline}"
+        return "".join(lines)
+
+    return None
+
+
 def _load_agent_ids(
     project_root: Path,
     *,
@@ -174,6 +195,11 @@ def create_meeting(
     summary_file = meeting_path / "summary.md"
     if not summary_file.exists():
         summary_file.write_text(_initial_summary_content(meeting_id, task), encoding="utf-8")
+    elif task:
+        content = summary_file.read_text(encoding="utf-8")
+        updated = _populate_task_if_placeholder(content, task)
+        if updated is not None:
+            summary_file.write_text(updated, encoding="utf-8")
 
     for agent_id in agent_ids:
         opinion_file = meeting_path / f"{agent_id}.opinion"
@@ -188,6 +214,11 @@ def create_meeting(
                 "Recommendations:\n",
                 encoding="utf-8",
             )
+        elif task:
+            content = opinion_file.read_text(encoding="utf-8")
+            updated = _populate_task_if_placeholder(content, task)
+            if updated is not None:
+                opinion_file.write_text(updated, encoding="utf-8")
 
     return meeting_path
 

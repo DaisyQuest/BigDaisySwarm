@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0018-update-create-meeting-to-handle-existing-templates-and-add-tests
+Agent: Critic
+Task: Update create_meeting to handle existing templates and add tests
+Context:
+- Blank Task lines can mislead future readers about the meeting intent when kickoff_task reuses seeded folders.
+- Heavy-handed rewrites risk erasing notes from earlier contributors.
+Position:
+- Task backfilling should be precise and reversible, altering only the placeholder line.
+Recommendations:
+- Guard the rewrite to trigger only when the Task line is empty/whitespace.
+- Add assertions to tests that confirm both task insertion and retention of preexisting notes.
+- Consider documenting required PYTHONPATH for running tests to avoid environmental noise.
