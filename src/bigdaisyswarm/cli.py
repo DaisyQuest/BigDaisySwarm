@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from .project import kickoff_task
@@ -27,8 +28,13 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
 
-    project_root = Path(args.project_root)
-    meeting_path = kickoff_task(project_root, task=args.task, meeting_id=args.meeting_id)
+    try:
+        project_root = Path(args.project_root)
+        meeting_path = kickoff_task(project_root, task=args.task, meeting_id=args.meeting_id)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
     print(meeting_path)
 
 
