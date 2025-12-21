@@ -85,11 +85,18 @@ def load_team_config(project_root: Path) -> Sequence[Mapping[str, object]]:
 def validate_project_teamconfig(
     project_root: Path, *, agent_definitions_path: Path | None = None
 ) -> None:
+    _load_and_validate_team_config(project_root, agent_definitions_path=agent_definitions_path)
+
+
+def _load_and_validate_team_config(
+    project_root: Path, *, agent_definitions_path: Path | None = None
+) -> tuple[Sequence[Mapping[str, object]], Sequence[AgentType]]:
     agent_types = load_agent_types_from_file(
         agent_definitions_path or DEFAULT_AGENT_DEFINITIONS_PATH
     )
     agents = load_team_config(project_root)
     validate_team_config(agents, agent_types=agent_types)
+    return agents, agent_types
 
 
 def write_team_config(path: Path, team_config: Sequence[Mapping[str, object]]) -> None:
@@ -112,19 +119,15 @@ def _extract_index(name: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _load_agent_ids(project_root: Path) -> list[str]:
-    team_config_path = project_root / "teamconfig.json"
-    if not team_config_path.is_file():
-        raise ValueError(f"teamconfig.json not found at {team_config_path}")
-
-    with team_config_path.open(encoding="utf-8") as config_file:
-        data = json.load(config_file)
-
-    if "agents" not in data:
-        raise ValueError("teamconfig.json must include an 'agents' list")
-
-    agents = data["agents"]
-    validate_team_config(agents)
+def _load_agent_ids(
+    project_root: Path,
+    *,
+    agents: Sequence[Mapping[str, object]] | None = None,
+    agent_types: Sequence[AgentType] | None = None,
+) -> list[str]:
+    if agents is None:
+        agents = load_team_config(project_root)
+    validate_team_config(agents, agent_types=agent_types)
     return [entry["id"] for entry in agents]
 
 
@@ -310,19 +313,17 @@ def scaffold_project(
 def kickoff_task(project_root: Path, task: str, meeting_id: str | None = None) -> Path:
     """Create a new meeting for a task and populate opinion files with the task context."""
     # Ensure teamconfig is structurally valid against the agent definitions before creating files.
-    validate_project_teamconfig(project_root)
+    agents, _ = _load_and_validate_team_config(project_root)
 
-    agent_ids = _load_agent_ids(project_root)
+    agent_ids = [entry["id"] for entry in agents]
     meeting_path, meeting_identifier = _planned_meeting_path(project_root, task, meeting_id)
     return create_meeting(meeting_path.parent, meeting_identifier, agent_ids, task=task)
 
 
 def plan_next_meeting(project_root: Path, task: str, meeting_id: str | None = None) -> Path:
     """Return the path for the next meeting without creating it."""
-    validate_project_teamconfig(project_root)
+    _load_and_validate_team_config(project_root)
 
-    # Ensures teamconfig exists and is readable; also mirrors kickoff preconditions.
-    _load_agent_ids(project_root)
     meeting_path, _ = _planned_meeting_path(project_root, task, meeting_id)
     return meeting_path
 
