@@ -169,6 +169,9 @@ jobs:
 
       - name: Configure web client container + registry credentials
         uses: azure/cli@v2
+        env:
+          ACR_ADMINUSER: ${{ secrets.ACR_ADMINUSER }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           inlineScript: |
             set -euo pipefail
@@ -177,9 +180,9 @@ jobs:
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --container-image-name "${ACR_LOGIN_SERVER}/calendar-web:${IMAGE_TAG}" \
-              --docker-registry-server-url "https://${ACR_LOGIN_SERVER}" \
-              --docker-registry-server-user "${{ secrets.ACR_ADMINUSER }}" \
-              --docker-registry-server-password "${{ secrets.ACR_PASSWORD }}" \
+              --container-registry-url "https://${ACR_LOGIN_SERVER}" \
+              --container-registry-user "$ACR_ADMINUSER" \
+              --container-registry-password "$ACR_PASSWORD" \
               --enable-app-service-storage false
 
             az webapp config appsettings set \
@@ -187,13 +190,17 @@ jobs:
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --settings WEBSITES_PORT=80
 
-            az webapp update \
+            az webapp config set \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set healthCheckPath="/healthz"
+              --health-check-path "/healthz"
+
 
       - name: Configure example server container + registry credentials
         uses: azure/cli@v2
+        env:
+          ACR_ADMINUSER: ${{ secrets.ACR_ADMINUSER }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           inlineScript: |
             set -euo pipefail
@@ -202,9 +209,9 @@ jobs:
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --container-image-name "${ACR_LOGIN_SERVER}/calendar-example:${IMAGE_TAG}" \
-              --docker-registry-server-url "https://${ACR_LOGIN_SERVER}" \
-              --docker-registry-server-user "${{ secrets.ACR_ADMINUSER }}" \
-              --docker-registry-server-password "${{ secrets.ACR_PASSWORD }}" \
+              --container-registry-url "https://${ACR_LOGIN_SERVER}" \
+              --container-registry-user "$ACR_ADMINUSER" \
+              --container-registry-password "$ACR_PASSWORD" \
               --enable-app-service-storage false
 
             az webapp config appsettings set \
@@ -212,7 +219,8 @@ jobs:
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --settings WEBSITES_PORT=8080
 
-            az webapp update \
+            az webapp config set \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set healthCheckPath="/readyz"
+              --health-check-path "/readyz"
+
