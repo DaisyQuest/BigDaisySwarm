@@ -17,6 +17,7 @@ from .calendar import (
     Participant,
     ParticipantService,
 )
+from .storage import CalendarStorage, InMemoryCalendarStorage
 from .project import create_meeting, scaffold_project, write_team_config
 
 __all__ = [
@@ -36,4 +37,6 @@ __all__ = [
     "EventService",
     "Participant",
     "ParticipantService",
+    "CalendarStorage",
+    "InMemoryCalendarStorage",
 ]
