@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: ArchitectB
+Task: configure oidc fallback and registration
+Context:
+- Need a graceful experience when OIDC settings are missing.
+- Basic auth fallback keeps the UI usable without remote sync.
+Position:
+- Support local basic auth only when OIDC is incomplete; keep remote sync locked behind full OIDC config.
+Recommendations:
+- Ensure the UI messaging makes the offline/local-only mode obvious.
+- Maintain strict HTTPS/JWKS enforcement when OIDC is provided.

@@ -10,6 +10,8 @@ INDEX_HTML = WEB_ROOT / "index.html"
 DOCKERFILE = WEB_ROOT / "Dockerfile"
 NGINX_CONF = WEB_ROOT / "nginx.conf"
 ENTRYPOINT = WEB_ROOT / "entrypoint.sh"
+AUTH_CONFIG = WEB_ROOT / "auth_config.mjs"
+BASIC_AUTH = WEB_ROOT / "basic_auth.mjs"
 
 
 def run_node_json(script: str) -> dict:
@@ -423,8 +425,11 @@ def test_index_shell_contains_regions():
         'data-region="agenda"',
         'data-region="insights"',
         'data-region="status"',
+        'data-region="auth"',
         'id="calendar-form"',
         'id="event-form"',
+        'id="login-form"',
+        'id="registration-form"',
     ]:
         assert marker in html
     assert '<script src="./runtime-config.js"></script>' in html
@@ -643,6 +648,112 @@ console.log(JSON.stringify({{
     assert any("Unsupported JWT alg" in msg for msg in result["messages"])
     assert result["challengeLength"] >= 43
     assert result["stateError"] is True
+
+
+def test_basic_auth_register_and_login_with_memory_storage():
+    script = f"""
+import {{ BasicAuth, MemoryStorage }} from 'file://{BASIC_AUTH.as_posix()}';
+const storage = new MemoryStorage();
+const auth = new BasicAuth({{ storage, now: () => 1000 }});
+const errors = [];
+try {{ auth.register('', 'short'); }} catch (error) {{ errors.push(error.message); }}
+try {{ auth.register('user@example.com', 'short'); }} catch (error) {{ errors.push(error.message); }}
+const session = auth.register('User@example.com', 'hunter2');
+let duplicate = '';
+try {{ auth.register('user@example.com', 'hunter2'); }} catch (error) {{ duplicate = error.message; }}
+const login = auth.authenticate('USER@example.com', 'hunter2');
+const current = auth.currentSession();
+auth.logout();
+const afterLogout = auth.currentSession();
+console.log(JSON.stringify({{
+  errors,
+  sessionUser: session.username,
+  tokenPrefix: session.token.split(' ')[0],
+  duplicate,
+  loginUser: login.username,
+  currentUser: current.username,
+  afterLogout,
+}}));
+"""
+    result = run_node_json(script)
+    assert "Username is required" in result["errors"][0]
+    assert "Password must be at least 6 characters long" in result["errors"][1]
+    assert result["sessionUser"] == "user@example.com"
+    assert result["tokenPrefix"] == "Basic"
+    assert result["duplicate"] == "User already registered"
+    assert result["loginUser"] == "user@example.com"
+    assert result["currentUser"] == "user@example.com"
+    assert result["afterLogout"] is None
+
+
+def test_basic_auth_rejects_invalid_credentials_and_recovers_from_corruption():
+    script = f"""
+import {{ BasicAuth, MemoryStorage }} from 'file://{BASIC_AUTH.as_posix()}';
+const storage = new MemoryStorage();
+storage.setItem('calendarapp:basic-auth:users', 'not-json');
+storage.setItem('calendarapp:basic-auth:session', JSON.stringify({{ username: 'ghost' }}));
+const auth = new BasicAuth({{ storage, now: () => 5000 }});
+let invalidError = '';
+auth.register('keeper', 'secrets');
+try {{ auth.authenticate('keeper', 'wrongpw'); }} catch (error) {{ invalidError = error.message; }}
+const session = auth.authenticate('keeper', 'secrets');
+const restoredSession = auth.currentSession();
+console.log(JSON.stringify({{
+  invalidError,
+  sessionUser: session.username,
+  restored: restoredSession.username,
+  tokenPrefix: session.token.split(' ')[0],
+  tokenLength: session.token.length,
+}}));
+"""
+    result = run_node_json(script)
+    assert result["invalidError"] == "Invalid credentials"
+    assert result["sessionUser"] == "keeper"
+    assert result["restored"] == "keeper"
+    assert result["tokenPrefix"] == "Basic"
+    assert result["tokenLength"] > 10
+
+
+def test_auth_config_helpers_flag_incomplete_oidc():
+    script = f"""
+import {{ isOidcConfigComplete, shouldUseBasicAuthFallback }} from 'file://{AUTH_CONFIG.as_posix()}';
+const complete = isOidcConfigComplete({{
+  authorizationEndpoint: 'https://issuer/authorize',
+  tokenEndpoint: 'https://issuer/token',
+  issuer: 'https://issuer',
+  clientId: 'client',
+  redirectUri: 'https://client/callback'
+}});
+const missing = isOidcConfigComplete({{
+  authorizationEndpoint: '',
+  tokenEndpoint: 'https://issuer/token',
+  issuer: 'https://issuer',
+  clientId: 'client',
+  redirectUri: 'https://client/callback'
+}});
+const fallback = shouldUseBasicAuthFallback({{
+  syncEnabled: true,
+  apiBaseUrl: 'https://api.example.com',
+  auth: {{
+    authorizationEndpoint: '',
+    tokenEndpoint: 'https://issuer/token',
+    issuer: 'https://issuer',
+    clientId: 'client',
+    redirectUri: 'https://client/callback'
+  }}
+}});
+const noFallback = shouldUseBasicAuthFallback({{
+  syncEnabled: false,
+  apiBaseUrl: 'https://api.example.com',
+  auth: {{ }}
+}});
+console.log(JSON.stringify({{ complete, missing, fallback, noFallback }}));
+"""
+    result = run_node_json(script)
+    assert result["complete"] is True
+    assert result["missing"] is False
+    assert result["fallback"] is True
+    assert result["noFallback"] is False
 
 
 def test_oidc_handle_redirect_and_token_exchange_success():

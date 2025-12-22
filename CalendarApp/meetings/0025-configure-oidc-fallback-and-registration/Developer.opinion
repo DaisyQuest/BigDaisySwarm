@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: Developer
+Task: configure oidc fallback and registration
+Context:
+- Added a local basic auth path so the web client can function without configured OIDC.
+- Implemented registration/login panels and validation to gate access when OIDC is missing.
+- Added helpers to detect incomplete OIDC config and expanded tests for coverage.
+Position:
+- Keep remote sync disabled when OIDC settings are incomplete and rely on local storage with basic auth.
+- Ensure tests guard the new auth paths and config detection logic.
+Recommendations:
+- Document the fallback behavior alongside deployment guidance.
+- Consider persisting basic auth users to a safer backend if promoted beyond local-only usage.

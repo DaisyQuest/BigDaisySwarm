@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: TestEngineer
+Task: configure oidc fallback and registration
+Context:
+- New basic auth fallback and registration UI require coverage.
+- Helpers detect incomplete OIDC config to gate remote sync.
+Position:
+- Tests should exercise registration/login success, credential failures, corrupted storage recovery, and config detection flags.
+Recommendations:
+- Maintain node-based tests for both OIDC and basic auth branches.
+- Add future checks to ensure status messaging reflects offline/fallback mode.

@@ -20,6 +20,38 @@
       </div>
     </header>
 
+    <section class="panel auth-panel hidden" data-region="auth">
+      <h2>Access</h2>
+      <p data-region="auth-status"></p>
+      <div class="auth-forms">
+        <form id="login-form" class="form">
+          <h3>Log in</h3>
+          <label>
+            Username
+            <input name="username" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">Log in</button>
+        </form>
+        <form id="registration-form" class="form">
+          <h3>Register</h3>
+          <label>
+            Username
+            <input name="username" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="new-password" required />
+          </label>
+          <p class="muted">Passwords must be at least 6 characters.</p>
+          <button type="submit">Create account</button>
+        </form>
+      </div>
+    </section>
+
     <main class="layout">
       <section class="panel">
         <h2>Calendars</h2>

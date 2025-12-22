@@ -2,6 +2,8 @@ import { CalendarModel, createSeedData } from './calendar_model.mjs';
 import { createStorageFromConfig, resolveConfig } from './config.mjs';
 import { renderAgenda, renderCalendarList, renderInsights, renderStatus } from './ui_templates.mjs';
 import { OidcSession } from './auth.mjs';
+import { BasicAuth } from './basic_auth.mjs';
+import { isOidcConfigComplete, shouldUseBasicAuthFallback } from './auth_config.mjs';
 import { createRemoteAdapter } from './remote_adapter.mjs';
 
 const state = {
@@ -38,27 +40,27 @@ function describeSyncMode(config, remoteActive) {
   return 'Sync: Local only';
 }
 
-async function initializeClient(statusRegion) {
-  const clientConfig = resolveConfig();
-  const baseStorage = createStorageFromConfig(clientConfig);
+async function initializeClient(statusRegion, clientConfig = null) {
+  const resolvedConfig = clientConfig || resolveConfig();
+  const baseStorage = createStorageFromConfig(resolvedConfig);
   let remoteActive = false;
   let remoteAdapter = null;
 
-  const syncLabel = () => describeSyncMode(clientConfig, remoteActive);
+  const syncLabel = () => describeSyncMode(resolvedConfig, remoteActive);
   const updateStatus = (message, tone = 'info') => {
     statusRegion.innerHTML = renderStatus(`${message} · ${syncLabel()}`, tone);
   };
 
-  if (clientConfig.syncEnabled && !clientConfig.apiBaseUrl) {
+  if (resolvedConfig.syncEnabled && !resolvedConfig.apiBaseUrl) {
     const error = new Error('Sync enabled but apiBaseUrl is not set');
     updateStatus(error.message, 'error');
     throw error;
   }
 
-  if (clientConfig.syncEnabled && clientConfig.apiBaseUrl) {
+  if (resolvedConfig.syncEnabled && resolvedConfig.apiBaseUrl && isOidcConfigComplete(resolvedConfig.auth)) {
     let authSession;
     try {
-      authSession = new OidcSession(clientConfig.auth);
+      authSession = new OidcSession(resolvedConfig.auth);
     } catch (error) {
       updateStatus(`Auth configuration error: ${error.message}`, 'error');
       throw error;
@@ -79,17 +81,17 @@ async function initializeClient(statusRegion) {
       throw authError;
     }
 
-    const defaultJwks = clientConfig.auth?.issuer
-      ? `${clientConfig.auth.issuer.replace(/\/$/, '')}/.well-known/jwks.json`
+    const defaultJwks = resolvedConfig.auth?.issuer
+      ? `${resolvedConfig.auth.issuer.replace(/\/$/, '')}/.well-known/jwks.json`
       : null;
-    const jwksUri = clientConfig.auth?.jwksUri || defaultJwks;
+    const jwksUri = resolvedConfig.auth?.jwksUri || defaultJwks;
 
     remoteAdapter = createRemoteAdapter({
-      apiBaseUrl: clientConfig.apiBaseUrl,
+      apiBaseUrl: resolvedConfig.apiBaseUrl,
       tokenProvider: () => authSession.requireAccessToken(),
       jwksUri,
-      issuer: clientConfig.auth?.issuer,
-      audience: clientConfig.auth?.audience || clientConfig.auth?.clientId,
+      issuer: resolvedConfig.auth?.issuer,
+      audience: resolvedConfig.auth?.audience || resolvedConfig.auth?.clientId,
       onWarn: (message) => updateStatus(message, 'error'),
     });
 
@@ -248,11 +250,89 @@ function prefillEventForm() {
   endInput.value = toLocalInput(end);
 }
 
+function wireBasicAuth({ statusRegion, clientConfig }) {
+  const authStatus = document.querySelector('[data-region="auth-status"]');
+  const authPanel = document.querySelector('[data-region="auth"]');
+  const layout = document.querySelector('.layout');
+  const loginForm = document.querySelector('#login-form');
+  const registerForm = document.querySelector('#registration-form');
+  const auth = new BasicAuth();
+
+  const showStatus = (message, tone = 'error') => {
+    const content = renderStatus(message, tone);
+    authStatus.innerHTML = content;
+    statusRegion.innerHTML = content;
+  };
+
+  const startApp = async () => {
+    authPanel.classList.add('hidden');
+    layout.classList.remove('hidden');
+    try {
+      const { model, updateStatus } = await initializeClient(statusRegion, { ...clientConfig, syncEnabled: false });
+      prefillEventForm();
+      wireControls({ model, updateStatus });
+      updateStatus('OIDC not configured; using local basic auth.');
+    } catch (error) {
+      showStatus(error?.message || 'Unable to start the client.');
+    }
+  };
+
+  const hydrateFromSession = () => {
+    const existing = auth.currentSession();
+    if (existing) {
+      showStatus(`Signed in as ${existing.username}`, 'info');
+      startApp();
+    } else {
+      showStatus('OIDC not configured; sign up or log in with basic auth to continue.', 'error');
+    }
+  };
+
+  loginForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    try {
+      const session = auth.authenticate(data.get('username'), data.get('password'));
+      showStatus(`Signed in as ${session.username}`, 'info');
+      startApp();
+    } catch (error) {
+      showStatus(error.message);
+    }
+  });
+
+  registerForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    try {
+      const session = auth.register(data.get('username'), data.get('password'));
+      showStatus(`Registered ${session.username}. You are now signed in.`, 'info');
+      startApp();
+    } catch (error) {
+      showStatus(error.message);
+    }
+  });
+
+  hydrateFromSession();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const statusRegion = document.querySelector('[data-region="status"]');
+  const authPanel = document.querySelector('[data-region="auth"]');
+  const layout = document.querySelector('.layout');
+  const clientConfig = resolveConfig();
+
+  if (shouldUseBasicAuthFallback(clientConfig)) {
+    authPanel.classList.remove('hidden');
+    layout.classList.add('hidden');
+    wireBasicAuth({ statusRegion, clientConfig });
+    return;
+  }
+
+  authPanel.classList.add('hidden');
+  layout.classList.remove('hidden');
+
   const boot = async () => {
     try {
-      const { model, updateStatus } = await initializeClient(statusRegion);
+      const { model, updateStatus } = await initializeClient(statusRegion, clientConfig);
       prefillEventForm();
       wireControls({ model, updateStatus });
       updateStatus('Ready to weave the next calendar story.');

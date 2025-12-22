@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: Critic
+Task: configure oidc fallback and registration
+Context:
+- OIDC gaps blocked sign-in; added basic auth fallback and registration UI.
+Position:
+- Fallback is acceptable only for local/offline use; remote sync must stay disabled without OIDC.
+Recommendations:
+- Watch for UX clarity so users know remote sync is unavailable without OIDC.
+- Keep tests covering both OIDC and fallback branches to prevent regressions.

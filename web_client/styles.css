@@ -62,6 +62,10 @@ body {
   gap: 1.5rem;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -183,6 +187,21 @@ button:hover {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.auth-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.auth-forms h3 {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
 }
 
 .agenda {
