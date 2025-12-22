@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: NoteTaker
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- Task: produce robust deployment documentation (Markdown + HTML) for RPS Arena from a single source, and align Azure workflow secrets/health checks.
+- Stack: Node HTTP server with optional MongoDB via MONGODB_URI, static assets in /public, Azure container deploy pipeline using SHA tags.
+- Quality: maintain 100% node coverage with c8 and run repo-level pytest --maxfail=1.
+
+Position:
+- Capture deployment steps (prereqs, local validation, production rollout, operational checklist) in a structured guide rendered to docs/deployment.md and public/deployment.html.
+- Ensure Azure workflow references all required secrets (including ACR_LOGIN_SERVER) and sets healthCheckPath for both apps.
+- Tests must assert generator correctness, CLI execution, and workflow expectations to prevent regressions.
+
+Recommendations:
+- Use `npm run docs` to refresh outputs after any change to deploymentGuide data.
+- Keep smoke commands (/api/news, /api/leaderboard) in docs and validate them during post-deploy steps.
+- Monitor the Azure workflow for secret availability and health check alignment with the deployed containers.

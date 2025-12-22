@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "c8 --100 node --test",
-    "coverage": "c8 --reporter=lcov --reporter=text node --test"
+    "coverage": "c8 --reporter=lcov --reporter=text node --test",
+    "docs": "node src/utils/deploymentDocs.js"
   },
   "keywords": [],
   "author": "BigDaisySwarm",

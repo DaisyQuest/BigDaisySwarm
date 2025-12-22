@@ -1,0 +1,18 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: Arbiter
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- Single task: deliver deployment documentation in Markdown and HTML from one source while tightening Azure workflow secrets/health checks.
+- Constraints: 100% coverage (node + pytest), keep generator authoritative, align with Node+Mongo server reality.
+
+Position:
+- Approve the structured generator approach (deploymentGuide + Markdown/HTML renderers) with generated artifacts committed for convenience.
+- Agree to keep Azure workflow secrets explicit (ACR login server included) and healthCheckPath set for both web and example server containers.
+- Validate through npm test (c8 --100 node --test) and PYTHONPATH=src pytest --maxfail=1 to honor repo-wide quality bars.
+
+Recommendations:
+- Require future deployment changes to update src/utils/deploymentDocs.js and rerun `npm run docs`.
+- Keep an eye on Azure readiness: ensure /healthz and /readyz endpoints stay live in the deployed containers to satisfy healthCheckPath.
+- Retain optional ACR login server override while still resolving via az acr show, avoiding single-secret brittleness.

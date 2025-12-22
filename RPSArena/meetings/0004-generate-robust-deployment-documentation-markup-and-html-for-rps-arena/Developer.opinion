@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: Developer
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- We need robust deployment docs for RPS Arena with both Markdown and HTML outputs, generated from a single canonical source.
+- The app is a Node HTTP server with optional MongoDB (MONGODB_URI/MONGODB_DB), static assets under /public, and Azure container workflow expectations.
+- Quality requirements include 100% c8 coverage for node tests and pytest --maxfail=1 at the repo root.
+
+Position:
+- Implement a structured guide in src/utils/deploymentDocs.js with renderers for Markdown and HTML plus a CLI-friendly entry point (`npm run docs`).
+- Store generated artifacts in docs/deployment.md and public/deployment.html, both stamped as generated to avoid manual edits.
+- Extend tests to validate content parity, graceful fallbacks, CLI execution paths, and file emission to custom/default targets.
+
+Recommendations:
+- Keep deploymentGuide data descriptive (prereqs, env vars, local validation, production rollout, operational checklist) and aligned with server defaults.
+- When deployment behavior changes (new env vars, endpoints, platform steps), update the guide data and rerun the generator to refresh both outputs.
+- Maintain test rigor: node --test with c8 --100 plus repo-level pytest must stay in the workflow before any release documentation ships.

@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: Critic
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- We are generating deployment docs and adjusting the Azure container workflow; both touch operational risk surfaces.
+- Docs come from a custom generator; rendered files are artifacts, not sources, so drift is possible if the generator is bypassed.
+- Azure secrets and health probes must stay accurate; over-reliance on secrets could block deployments if defaults change.
+
+Position:
+- Single-source generation is good but brittle if contributors hand-edit outputs or forget to re-run `npm run docs`.
+- Requiring an explicit ACR login server secret is stricter than the previous auto-resolve flow; failure to provision could stall pipelines.
+- Health check paths now encoded as /readyz and /healthz—ensure those endpoints are live in the deployed containers or adjust the workflow to match.
+
+Recommendations:
+- Document clearly in the rendered files that edits belong in src/utils/deploymentDocs.js and enforce that via code review.
+- Consider keeping ACR login server resolution fallback (present) and verifying in CI that the secret or ACR query succeeds before pushing images.
+- Add periodic smoke checks (maybe GitHub Actions job) to hit /api/news and /api/leaderboard in staging so the health paths reflect real endpoints.

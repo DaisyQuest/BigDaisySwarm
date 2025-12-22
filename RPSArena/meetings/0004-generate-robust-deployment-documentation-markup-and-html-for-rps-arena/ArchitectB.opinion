@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: ArchitectB
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- Deployment guidance must support both HTML (served from /public) and Markdown artifacts while avoiding duplicated content.
+- The stack is plain Node.js with a Mongo-backed store when MONGODB_URI is set; otherwise it operates in-memory with ephemeral data.
+- Azure container workflow is already in-flight; secrets, health probes, and tag strategy (IMAGE_TAG=sha) have to remain coherent.
+
+Position:
+- Use a declarative deployment guide model so we can render multiple outputs consistently and keep tests authoritative.
+- Document the operational envelopes (single-process server, PORT binding, MongoDB expectations) alongside the GitHub Actions release path.
+- Ensure cloud workflow health checks map to the app’s endpoints so platform readiness aligns with runtime behavior.
+
+Recommendations:
+- Keep the generator’s content focused on actionable steps: install, test (npm test + pytest), configure env vars, smoke /api/news + /api/leaderboard.
+- When Azure or container requirements change, update the source data and rerun the generator; never hand-edit the rendered docs.
+- Maintain secrets coverage in the workflow (ACR login server included) and keep healthCheckPath explicit for both the web client and example server containers.
