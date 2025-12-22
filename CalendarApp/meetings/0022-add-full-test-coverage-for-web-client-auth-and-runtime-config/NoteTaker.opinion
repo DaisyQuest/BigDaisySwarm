@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0022-add-full-test-coverage-for-web-client-auth-and-runtime-config
+Agent: NoteTaker
+Task: add full test coverage for web client auth and runtime config
+Context:
+- Auth-enabled web client needs fuller coverage to stay demo-ready.
+Position:
+- Team added realistic Node tests for JWT/JWKS validation (expiry, nbf, issuer/audience, signature, unsupported algs), PKCE generation, redirect handling (success/error), and remote adapter load/save failures with warnings.
+Recommendations:
+- Next: container-level smoke to verify runtime-config.js generation from env vars, plus staging e2e against the real API/issuer to catch drift before public demos.

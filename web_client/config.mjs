@@ -6,10 +6,26 @@ export const defaultConfig = {
   storageKey: "calendarapp-web-state",
   useLocalStorage: true,
   remoteAdapter: null,
+  auth: {
+    issuer: "",
+    audience: "",
+    clientId: "",
+    authorizationEndpoint: "",
+    tokenEndpoint: "",
+    jwksUri: "",
+    redirectUri: "",
+    scopes: ["calendar.read", "calendar.write"],
+  },
 };
 
+function mergeAuth(authOverrides = null) {
+  return { ...defaultConfig.auth, ...(authOverrides || {}) };
+}
+
 export function mergeConfig(overrides = {}) {
-  return { ...defaultConfig, ...(overrides || {}) };
+  const merged = { ...defaultConfig, ...(overrides || {}) };
+  merged.auth = mergeAuth(overrides?.auth);
+  return merged;
 }
 
 export function resolveConfig(globalOverrides = null, localOverrides = null) {

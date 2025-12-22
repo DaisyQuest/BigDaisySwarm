@@ -201,7 +201,10 @@ jobs:
             az webapp update \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set siteConfig.healthCheckPath="/readyz"
+
+
+
+
 
       - name: Configure example server container + registry credentials
         uses: azure/cli@v2
@@ -229,4 +232,4 @@ jobs:
             az webapp update \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set siteConfig.healthCheckPath="/healthz"
+

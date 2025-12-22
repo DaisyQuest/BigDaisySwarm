@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0022-add-full-test-coverage-for-web-client-auth-and-runtime-config
+Agent: Critic
+Task: add full test coverage for web client auth and runtime config
+Context:
+- We hardened auth/remote sync but lacked full branch coverage; demos could regress silently.
+Position:
+- Good move to test real RSA-signed JWTs and JWKS checks (expiry, nbf, issuer/audience, signature, unsupported algs) plus PKCE and redirect flows; remote adapter error handling now exercised.
+- Remaining risk: runtime-config generation still untested at container level; assuming `/state` contract may diverge from real API.
+Recommendations:
+- Add container/runtime-config smoke and align with backend on `/state`; introduce telemetry around auth/JWKS failures to aid demo readiness.
+- Keep unit tests realistic (signed tokens, HTTPS enforcement) to avoid hollow coverage claims.

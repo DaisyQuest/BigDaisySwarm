@@ -113,12 +113,27 @@ az webapp update \
   --name "calendar-web-client" \
   --resource-group "$RESOURCE_GROUP" \
   --set healthCheckPath="/healthz"
+
+# Wire API + OIDC at runtime (required for remote sync)
+az webapp config appsettings set \
+  --name "calendar-web-client" \
+  --resource-group "$RESOURCE_GROUP" \
+  --settings \
+    CALENDAR_API_BASE_URL="https://calendar-api.example.com" \
+    SYNC_ENABLED=true \
+    OIDC_ISSUER="https://issuer.example.com" \
+    OIDC_AUDIENCE="calendar-api" \
+    OIDC_CLIENT_ID="calendar-web" \
+    OIDC_AUTHORIZATION_ENDPOINT="https://issuer.example.com/authorize" \
+    OIDC_TOKEN_ENDPOINT="https://issuer.example.com/oauth/token" \
+    OIDC_REDIRECT_URI="https://calendar-web-client.azurewebsites.net" \
+    OIDC_SCOPES='["openid","profile","email","calendar.read","calendar.write"]'
 ```
 
 Notes:
 - The `web_client/nginx.conf` file sets the correct MIME type for `.mjs` modules and serves `/healthz` with HTTP 200 for Azure health probes.
 - Keep `index.html`, `app.js`, `calendar_model.mjs`, and `ui_templates.mjs` together under `/usr/share/nginx/html` when customizing the image.
-- If you need to inject runtime configuration, mount a short script that sets `window.__CALENDAR_APP_CONFIG__` ahead of `app.js` (see `CONFIGURATION.md`).
+- Runtime config is generated at startup from the `OIDC_*` and `CALENDAR_API_BASE_URL` variables via `entrypoint.sh`; missing values will halt the UI instead of falling back to seed data.
 
 ## Deploy via GitHub Actions (container path)
 The `.github/workflows/azure-containers.yml` workflow builds this image, pushes it to ACR, and updates the configured App Service. Populate these repository secrets:
