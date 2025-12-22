@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: ArchitectB
+Task: prepare web client demo with real auth
+Context:
+- Public demo should authenticate against the real API; defaulting to seed data is unacceptable.
+Position:
+- Require HTTPS-only URLs (except localhost) and JWKS-backed JWT verification before any remote sync; block startup when `apiBaseUrl`/OIDC config is missing.
+- Generate runtime-config.js at container start from env so deployments don’t drift; ensure health checks are set on App Service.
+Recommendations:
+- Pair with backend to validate `/state` semantics; adjust the adapter quickly if API shape changes.
+- Add staging smoke to exercise auth redirect + JWKS retrieval to catch issuer or secret drift before release.

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: ArchitectB
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Dockerized web client needs to pull real calendar data from the API with OIDC protection; current behavior only shows local seeds.
+- We need deterministic runtime configuration so deployments on the internet cannot omit issuer/audience/JWKS inputs.
+Position:
+- Generate `runtime-config.js` from environment at container start and wire OIDC + API base URL into the UI before it boots.
+- Require JWKS validation (RS256/ES256) and block insecure URLs to align with the security spec; no remote sync without those signals.
+Recommendations:
+- Keep runtime defaults strict: if `SYNC_ENABLED=true` and required OIDC fields are missing, fail loudly rather than auto-seeding.
+- Document the env map (`CALENDAR_API_BASE_URL`, `OIDC_*`, scopes) in the Azure path and add a staging check that confirms the entrypoint writes the expected config.

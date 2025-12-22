@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: Critic
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Public-facing client was still demo-grade: seed data, no OIDC gating, and no crypto enforcement.
+- Remote adapter assumes a `/state` PUT/GET contract that may not exist on the real API.
+Position:
+- Good move to require HTTPS + JWKS before syncing; failing fast stops us from serving fake data in production.
+- Risk: if the backend contract differs or lacks `/state`, users will stall at boot—no offline fallback when sync is enabled.
+Recommendations:
+- Align with the backend team on the exact remote API shape (DSL vs. REST `/state`) and adjust the adapter quickly to avoid broken prod.
+- Add telemetry around auth failures and JWKS fetch errors so we can distinguish issuer outages from config drift in the field.

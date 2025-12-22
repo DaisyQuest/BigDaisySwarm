@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0022-add-full-test-coverage-for-web-client-auth-and-runtime-config
+Agent: ArchitectB
+Task: add full test coverage for web client auth and runtime config
+Context:
+- Auth-enabled web client must be demo-ready; prior coverage missed several error branches.
+Position:
+- Favor realistic unit tests: signed JWTs with JWKS validation (expiry, nbf, issuer/audience, unsupported algs, bad signatures), PKCE generation, redirect success/error handling, and remote adapter load/save failure surfaces.
+- Preserve strict HTTPS/JWKS requirements; tests should fail loudly on insecure paths.
+Recommendations:
+- Introduce container/runtime-config smoke tests to confirm env wiring on deploy.
+- Partner with backend for staging e2e auth + `/state` validation before public launches.

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: TestEngineer
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Needed coverage for the new OIDC/JWKS enforcement so docker builds don’t regress into seed-only mode.
+- Remote adapter now depends on HTTPS endpoints, JWKS, and `/state` availability.
+Position:
+- Added Node-based tests that sign RS256 tokens, verify JWKS enforcement, exercise PKCE generation, and assert remote adapter load/save behavior plus audience failures.
+- Verified the Dockerfile now references the entrypoint and the HTML loads `runtime-config.js`, preventing silent misconfigurations.
+Recommendations:
+- Add a smoke test that hits a real issuer + API in CI (or staging) to catch expired certs/JWKS rotations and to confirm `/state` PUT contract matches the backend.
+- Consider a negative test for missing env vars in the entrypoint once we have a container-level harness to assert the generated `runtime-config.js`.

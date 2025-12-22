@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: NoteTaker
+Task: prepare web client demo with real auth
+Context:
+- Goal: make the public demo rely on real API + OIDC, not seed data; add runtime config generation and health-checked deployment.
+Position:
+- Team agreed to enforce HTTPS + JWKS validation and to block startup when sync is enabled but config is incomplete; entrypoint writes runtime-config.js from env.
+Recommendations:
+- Verify `/state` contract with the live backend and add a staging smoke that covers auth redirect + JWKS to prevent regressions.
+- Capture telemetry for auth/JWKS errors so operators can spot issuer/config drift early in demos.

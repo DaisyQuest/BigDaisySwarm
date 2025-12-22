@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: TestEngineer
+Task: prepare web client demo with real auth
+Context:
+- Remote sync path needs coverage for JWKS enforcement and runtime-config wiring so public demos don’t regress to seed data.
+Position:
+- Add Node-based tests for PKCE/JWT verification, remote adapter load/save, runtime-config inclusion, Dockerfile entrypoint, and workflow health checks.
+- Verify failure paths: missing JWKS, insecure URLs, and startup halts when sync is enabled without apiBaseUrl.
+Recommendations:
+- Extend CI with a staging smoke that hits the real issuer/API to validate `/state` and token validation end-to-end.
+- Consider adding tests for entrypoint env parsing once a container harness is available to catch miswired deployments early.

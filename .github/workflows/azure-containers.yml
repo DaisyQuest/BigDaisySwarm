@@ -23,6 +23,7 @@ jobs:
       APP_SERVICE_PLAN: ${{ secrets.APP_SERVICE_PLAN }}
 
       ACR_NAME: ${{ secrets.ACR_NAME }}
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
 
@@ -44,7 +45,7 @@ jobs:
           set -euo pipefail
           missing=0
 
-          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
+          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP ACR_NAME ACR_LOGIN_SERVER WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
             if [ -z "${!var:-}" ]; then
               echo "::error title=Missing secret::${var} is required"
               missing=1
@@ -193,7 +194,12 @@ jobs:
             az webapp config set \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
+              --health-check-path "/healthz"
 
+            az webapp update \
+              --name "$WEB_CLIENT_APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --set healthCheckPath="/healthz"
 
 
       - name: Configure example server container + registry credentials
@@ -222,5 +228,9 @@ jobs:
             az webapp config set \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
+              --health-check-path "/readyz"
 
-
+            az webapp update \
+              --name "$EXAMPLE_SERVER_APP_NAME" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --set healthCheckPath="/readyz"
