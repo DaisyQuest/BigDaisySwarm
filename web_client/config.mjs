@@ -2,7 +2,7 @@ import { createBrowserStorage, MemoryStorage } from "./calendar_model.mjs";
 
 export const defaultConfig = {
   syncEnabled: false,
-  apiBaseUrl: "",
+  apiBaseUrl: "https://calendar-demo-server.azurewebsites.net",
   storageKey: "calendarapp-web-state",
   useLocalStorage: true,
   remoteAdapter: null,

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0024-continue-developing-the-software
+Agent: Developer
+Task: continue developing the software
+Context:
+Position:
+- The web client lacked a default API base URL, preventing sync when runtime configuration was omitted.
+- The NGINX container shipped an Azure-specific `/healthz` responder that is no longer needed.
+
+Recommendations:
+- Set a sensible default `apiBaseUrl` pointing to the demo server in both static defaults and the runtime entrypoint.
+- Remove the `/healthz` stanza from `nginx.conf` and adjust deployment guidance and tests accordingly.
+- Expand automated tests to cover the new defaults and guard against regressions in runtime config generation.
