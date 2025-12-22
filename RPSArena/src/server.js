@@ -115,11 +115,10 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/api/matchmaking" && req.method === "POST") {
         const payload = await parseBody(req);
         requireFields(payload, ["userId", "mode", "variant"]);
-        const response = matchService.enqueue(payload.userId, {
-          mode: payload.mode,
-          variant: payload.variant,
-          roundCount: payload.roundCount || 3,
-        });
+        const options = { mode: payload.mode, variant: payload.variant, roundCount: payload.roundCount || 3 };
+        const response = payload.playBot
+          ? await matchService.playBot(payload.userId, options)
+          : await matchService.enqueue(payload.userId, options);
         return json(200, response);
       }
 

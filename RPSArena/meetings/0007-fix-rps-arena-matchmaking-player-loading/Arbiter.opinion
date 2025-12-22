@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: Arbiter
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - We need the matchmaking flow to deliver match data to both players, support polling, and avoid corrupting queues on failures.
+  - Matching should hydrate player info safely and reject pairings with missing users.
+Position:
+  - Proceed with the poll-friendly, async enqueue that surfaces queued/matched status and hydrates playerProfiles while safeguarding the queue.
+Recommendations:
+  - Implement active-match lookup, sanitized player hydration, and rollback of dequeued opponents on errors; backstop with expanded tests plus npm/pytest runs.

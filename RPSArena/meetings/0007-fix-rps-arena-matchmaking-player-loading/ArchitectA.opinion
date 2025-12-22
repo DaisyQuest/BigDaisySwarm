@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: ArchitectA
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - Matchmaking currently returns a match payload only to the second caller, leaving the originally queued player without the data needed to load into the game.
+  - Active matches already track participants, but the service does not expose that state for polling and it does not hydrate player metadata.
+  - The UI and API remain HTTP-only, so we need a polling-friendly workflow rather than websockets.
+Position:
+  - Expose the active match to any player already paired instead of throwing a duplicate-queue error, so both sides can fetch the game state.
+  - Hydrate the match object with sanitized player profiles during creation to unblock the client/game loader immediately after a pairing event.
+Recommendations:
+  - Make `enqueue` async, check for an existing active match first, and allow repeat calls from queued players to return either queued or matched status.
+  - Load player records when creating a match, include sanitized `playerProfiles` in the match object, and keep queue integrity intact if hydration fails.

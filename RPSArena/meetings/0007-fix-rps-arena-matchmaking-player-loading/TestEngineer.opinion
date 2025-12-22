@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: TestEngineer
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - The matchmaking flow lacked coverage for queued players polling status, hydration of player profiles, and queue rollback when pairing fails.
+  - c8 enforces 100% statements/branches/functions/lines in `npm test`; pytest also runs repo-wide.
+Position:
+  - Expand tests to assert every branch of the new enqueue workflow (queued repeat calls, matched polling, hydration failures) and maintain coverage at 100%.
+Recommendations:
+  - Add scenarios where the first player re-enqueues after another player joins to verify matched responses with playerProfiles.
+  - Introduce a negative test for missing opponents to ensure the queue is restored, and run both `npm test` and `pytest --maxfail=1` to confirm regressions are caught.

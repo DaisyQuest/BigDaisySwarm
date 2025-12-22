@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: Critic
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - Blocking duplicate enqueue calls prevents the first player from ever receiving match details, effectively breaking the game start flow.
+  - Hydrating matches without verifying player existence risks creating active matches that cannot be resolved.
+  - Error handling around queue pops is currently brittle because the dequeued player is not restored on failure.
+Position:
+  - Shift to a status-friendly enqueue that returns queued/matched states instead of throwing, while validating players during hydration.
+  - Guard queue mutations so failures do not silently drop waiting players.
+Recommendations:
+  - Ensure `loadMatchPlayers` throws early for missing users and that `enqueue` reinstates the dequeued opponent when hydration fails.
+  - Keep a focus on sanitized data in `playerProfiles` to avoid leaking credentials when returning match payloads.

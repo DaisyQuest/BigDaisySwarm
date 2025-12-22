@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: NoteTaker
+Task: Add login flow and bot matchmaking
+Context:
+  - Need login UI and stored auth state so players aren’t typing IDs for matchmaking/profile updates.
+  - Add “Play vs Bot” for quick human testing, backed by bot user creation and match hydration.
+  - Maintain 100% coverage with npm test (c8 --100) and repo pytest.
+Position:
+  - Introduce `currentUser` tracking in the client, swap in a login panel/navigation, and wire matchmaking/avatar/history to that state.
+  - Implement `playBot` in the service and expose it via the existing matchmaking endpoint with a bot flag.
+Recommendations:
+  - Update UI (buttons/forms) for login and bot play, guard actions when unauthenticated, and show user summary.
+  - Add tests covering bot creation/reuse and invalid round counts; confirm both test suites pass at full coverage.

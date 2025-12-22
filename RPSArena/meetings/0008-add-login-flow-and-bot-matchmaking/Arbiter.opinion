@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: Arbiter
+Task: Add login flow and bot matchmaking
+Context:
+  - Feature asks: login screen/stateful matchmaking without manual IDs, plus a “play against bot” button.
+  - Service changes must keep queues safe and match data sanitized while meeting 100% coverage.
+Position:
+  - Proceed with client auth state (login panel + user summary), remove manual ID fields, and add a bot matchmaking path via the service.
+  - Ensure bot users are created once, profiles sanitized, and round counts validated.
+Recommendations:
+  - Wire `/api/matchmaking` to accept a bot flag and implement `playBot` in `MatchService`.
+  - Update UI flows and add tests for bot creation/reuse and validation; verify npm test and repo pytest remain green at 100% coverage.

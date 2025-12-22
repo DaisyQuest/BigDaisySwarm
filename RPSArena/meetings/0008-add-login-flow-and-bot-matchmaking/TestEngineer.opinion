@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: TestEngineer
+Task: Add login flow and bot matchmaking
+Context:
+  - New login flow and bot matchmaking introduce fresh branches that must stay at 100% coverage.
+  - `playBot` adds validation (round counts), bot provisioning, and active-match reuse paths.
+  - UI now relies on stored auth state instead of manual player IDs.
+Position:
+  - Add targeted tests for bot creation, reuse, and invalid inputs while keeping existing queue/match tests intact.
+  - Ensure coverage tooling (c8 --100) and root-level pytest both run clean after changes.
+Recommendations:
+  - Extend `matchService.test.js` with cases for bot hydration, active match polling, and round-count enforcement.
+  - Verify npm test reports 100% across services and rerun `pytest --maxfail=1` to confirm repo-wide stability.

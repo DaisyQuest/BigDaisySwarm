@@ -16,6 +16,7 @@
         <span>RPS Arena</span>
       </div>
       <div class="nav-actions">
+        <button id="nav-login" class="ghost">Login</button>
         <button id="nav-register" class="ghost active">Register</button>
         <button id="nav-home" class="ghost">Home</button>
       </div>
@@ -50,6 +51,16 @@
     </header>
 
     <main>
+      <section id="login" class="panel hidden">
+        <h2>Login</h2>
+        <form id="login-form" class="stack">
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" required minlength="8" /></label>
+          <button type="submit" class="primary">Login</button>
+          <p class="form-feedback" id="login-feedback"></p>
+        </form>
+      </section>
+
       <section id="registration" class="panel">
         <h2>Create your competitor</h2>
         <form id="registration-form" class="stack">
@@ -64,6 +75,7 @@
 
       <section id="home" class="panel hidden">
         <h2>Matchmaking Hub</h2>
+        <div class="pill" id="user-summary">Not logged in</div>
         <div class="grid">
           <div class="card">
             <h3>News</h3>
@@ -72,7 +84,6 @@
           <div class="card">
             <h3>Find a match</h3>
             <form id="queue-form" class="stack">
-              <label>Player Id <input name="userId" required /></label>
               <label>Mode
                 <select name="mode">
                   <option value="classic">Classic</option>
@@ -87,6 +98,7 @@
               </label>
               <label>Rounds <input type="number" name="roundCount" min="1" value="3" /></label>
               <button class="primary" type="submit">Queue me</button>
+              <button class="ghost" type="button" id="queue-bot">Play vs Bot</button>
               <p class="form-feedback" id="queue-feedback"></p>
             </form>
           </div>
@@ -107,7 +119,6 @@
           <div class="card">
             <h3>Edit Profile</h3>
             <form id="avatar-form" class="stack">
-              <label>User Id <input name="userId" required /></label>
               <label>Avatar Color <input name="avatarColor" value="#ff6f61" /></label>
               <button class="primary" type="submit">Update Avatar</button>
               <p class="form-feedback" id="avatar-feedback"></p>
