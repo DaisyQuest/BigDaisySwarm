@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: Arbiter
+Task: Fix player not loading into match in RPSArena
+Context:
+  - The client left players stranded in a queued state by never reissuing matchmaking requests after the initial submit.
+  - A dedicated, tested polling helper would resolve the visibility gap without touching backend contracts.
+Position:
+  - Approve adding a matchmaking poller plus UI wiring to automatically deliver match ids/opponents once pairing completes.
+Recommendations:
+  - Merge the poller module with full branch coverage, wire it into queue/bot flows, and keep status messaging consistent.
+  - Run both `npm test` (c8 --100) and repo `pytest --maxfail=1` before delivery.

@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: Critic
+Task: Fix player not loading into match in RPSArena
+Context:
+  - Users stayed in a queued state because the UI never retried `/api/matchmaking`, effectively hiding successful pairings.
+  - New polling logic risks duplicate network calls or orphaned timers if not carefully managed.
+Position:
+  - Favor a small, testable poller that guards against re-entrancy and cancels timers on completion or failure.
+  - Keep messaging consistent (queued vs matched) so users have clear feedback without spamming the API.
+Recommendations:
+  - Ensure the poller stops on both matched and error paths and does not spawn overlapping requests.
+  - Validate opponent labeling so we don’t show empty strings when the player list is missing or incomplete.
+  - Monitor queue server load; if intervals increase traffic, consider exponential backoff or websocket promotion later.
