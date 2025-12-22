@@ -9,7 +9,7 @@ Set a global `window.__CALENDAR_APP_CONFIG__` **before** including `app.js`:
 <script>
   window.__CALENDAR_APP_CONFIG__ = {
     syncEnabled: true,
-    apiBaseUrl: "https://api.example.com",
+    apiBaseUrl: "https://calendar-demo-server.azurewebsites.net",
     storageKey: "calendarapp-web-state",
     useLocalStorage: true,
     // Optional: supply a remote adapter with synchronous load/save methods
@@ -34,7 +34,7 @@ Set a global `window.__CALENDAR_APP_CONFIG__` **before** including `app.js`:
 
 Fields:
 - `syncEnabled` (boolean): If `true`, the client attempts to use `remoteAdapter`; otherwise it stays local.
-- `apiBaseUrl` (string): For documentation/status only; include your server base URL when syncing remotely.
+- `apiBaseUrl` (string): Server base URL used for remote sync. Defaults to `https://calendar-demo-server.azurewebsites.net` when unset.
 - `storageKey` (string): Key used for `localStorage` persistence.
 - `useLocalStorage` (boolean): If `false`, the client stays in-memory.
 - `remoteAdapter` (object | null): Optional adapter with `load()` and `save(snapshot)` methods. Errors fall back to local storage with a warning.
@@ -53,6 +53,6 @@ When hosting statically (Azure Static Web Apps, Azure Storage, etc.), you can pl
 
 `runtime-config.js` is loaded ahead of `app.js`; container deployments rewrite it from environment variables:
 
-- `CALENDAR_API_BASE_URL` → `apiBaseUrl`
+- `CALENDAR_API_BASE_URL` → `apiBaseUrl` (defaults to `https://calendar-demo-server.azurewebsites.net` if unset)
 - `SYNC_ENABLED`, `USE_LOCAL_STORAGE`, `STORAGE_KEY`
 - `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_CLIENT_ID`, `OIDC_AUTHORIZATION_ENDPOINT`, `OIDC_TOKEN_ENDPOINT`, `OIDC_JWKS_URI`, `OIDC_REDIRECT_URI`, `OIDC_SCOPES`

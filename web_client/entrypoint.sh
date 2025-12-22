@@ -56,7 +56,7 @@ SYNC_ENABLED_VALUE=$(normalize_bool "${SYNC_ENABLED:-}" true)
 USE_LOCAL_STORAGE_VALUE=$(normalize_bool "${USE_LOCAL_STORAGE:-}" true)
 SCOPES_VALUE=$(normalize_scopes "${OIDC_SCOPES:-}")
 
-API_BASE_URL=$(escape_json_string "${CALENDAR_API_BASE_URL:-}")
+API_BASE_URL=$(escape_json_string "${CALENDAR_API_BASE_URL:-https://calendar-demo-server.azurewebsites.net}")
 STORAGE_KEY=$(escape_json_string "${STORAGE_KEY:-calendarapp-web-state}")
 ISSUER=$(escape_json_string "${OIDC_ISSUER:-}")
 AUDIENCE=$(escape_json_string "${OIDC_AUDIENCE:-}")

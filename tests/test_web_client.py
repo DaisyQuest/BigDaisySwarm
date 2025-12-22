@@ -327,6 +327,21 @@ console.log(JSON.stringify({{
     assert result["resolvedSync"] is True
 
 
+def test_default_config_uses_demo_api_base_url():
+    script = f"""
+import {{ defaultConfig, resolveConfig }} from 'file://{WEB_ROOT.joinpath("config.mjs").as_posix()}';
+global.window = {{ __CALENDAR_APP_CONFIG__: {{}} }};
+const resolved = resolveConfig();
+console.log(JSON.stringify({{
+  defaultBase: defaultConfig.apiBaseUrl,
+  resolvedBase: resolved.apiBaseUrl,
+}}));
+"""
+    result = run_node_json(script)
+    assert result["defaultBase"] == "https://calendar-demo-server.azurewebsites.net"
+    assert result["resolvedBase"] == "https://calendar-demo-server.azurewebsites.net"
+
+
 def build_runtime_config(tmp_path, env=None):
     config_path = tmp_path / f"runtime-config-{len(list(tmp_path.iterdir()))}.js"
     run_env = os.environ.copy()
@@ -364,6 +379,12 @@ def test_entrypoint_normalizes_scope_inputs_and_booleans(tmp_path):
     default_config, text_with_default = build_runtime_config(tmp_path, {"OIDC_SCOPES": " , , "})
     assert default_config["auth"]["scopes"][0] == "openid"
     assert '["openid","profile","email","calendar.read","calendar.write"]' in text_with_default
+
+
+def test_entrypoint_applies_default_api_base_url(tmp_path):
+    config, text = build_runtime_config(tmp_path)
+    assert config["apiBaseUrl"] == "https://calendar-demo-server.azurewebsites.net"
+    assert "calendar-demo-server.azurewebsites.net" in text
 
 
 def test_ui_templates_and_shell():
@@ -418,7 +439,7 @@ def test_web_client_dockerfile_and_nginx_conf():
     assert 'CMD ["/entrypoint.sh"]' in dockerfile_text
 
     nginx_text = NGINX_CONF.read_text(encoding="utf-8")
-    assert "healthz" in nginx_text
+    assert "healthz" not in nginx_text
     assert "application/javascript mjs" in nginx_text
     assert "try_files $uri $uri/ /index.html;" in nginx_text
 

@@ -19,8 +19,8 @@ def test_azure_containers_workflow_exists_and_uses_secrets():
         'EXAMPLE_SERVER_APP_NAME',
     ]:
         assert f"secrets.{secret}" in content
-    assert 'healthCheckPath="/healthz"' in content
-    assert 'healthCheckPath="/readyz"' in content
+    assert 'healthCheckPath="/healthz"' not in content
+    assert 'healthCheckPath="/readyz"' not in content
 
 
 def test_workflow_tags_use_sha():
