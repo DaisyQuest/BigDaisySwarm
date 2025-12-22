@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: ArchitectA
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- Deployment documentation must cover the Node HTTP server, optional MongoDB persistence, static assets in /public, and Azure container delivery already wired in the repo.
+- The request includes both Markdown and HTML deliverables derived from a single source of truth with zero drift.
+- Quality gates stay strict: 100% automated coverage, pytest from repo root, and GitHub Actions workflow expectations (health checks, required secrets) must remain accurate.
+
+Position:
+- Model the deployment guidance as structured data plus renderers so Markdown and HTML stay synchronized and maintainable.
+- Keep the guidance grounded in the actual server behavior (MONGODB_URI fallback to in-memory, PORT default 3000, seeded news) and the current Azure pipeline.
+- Treat the GitHub Actions workflow as part of the deployment contract; secrets and health checks should be explicit and validated.
+
+Recommendations:
+- Preserve src/utils/deploymentDocs.js as the single source; regenerate outputs via `npm run docs` after any platform or API change.
+- Keep deployment steps aligned with runtime defaults (in-memory vs Mongo) and validate smoke endpoints (/api/news, /api/leaderboard) in docs and checks.
+- Maintain the Azure workflow with clearly named secrets (including ACR login server) and explicit healthCheckPath settings to mirror production readiness expectations.

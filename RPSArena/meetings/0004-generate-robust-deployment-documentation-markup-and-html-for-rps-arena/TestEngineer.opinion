@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0004-generate-robust-deployment-documentation-markup-and-html-for-rps-arena
+Agent: TestEngineer
+Task: Generate robust deployment documentation (markup and html) for RPS Arena
+Context:
+- Deliverables include generated Markdown/HTML deployment docs plus updated Azure workflow health probes; all changes require full automated coverage.
+- Node suite enforces 100% coverage via c8; repository policy also demands pytest --maxfail=1 at the root.
+- Documentation generator writes to docs/deployment.md and public/deployment.html using src/utils/deploymentDocs.js as the single source.
+
+Position:
+- Add node:test coverage for the generator: content parity assertions, fallback handling (missing metadata, empty checklists), CLI/runWhenExecutedDirectly branches, and file writes to custom/default paths.
+- Treat the Azure workflow as testable configuration—secrets should be referenced explicitly, and healthCheckPath settings should be present for both apps.
+- Ensure test runs include npm test (c8 --100 node --test) and repo-level pytest to keep both ecosystems green.
+
+Recommendations:
+- Keep generator tests resilient by asserting key phrases (MONGODB_URI, smoke checks, readiness checklist) in both renders and verifying HTML escaping.
+- Add regression checks if new env vars or steps join the guide so coverage stays complete across branches.
+- Maintain workflow fixtures: ensure secrets.ACR_* and healthCheckPath strings remain in the YAML to satisfy configuration validations.

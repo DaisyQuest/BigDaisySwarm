@@ -23,6 +23,7 @@ jobs:
       APP_SERVICE_PLAN: ${{ secrets.APP_SERVICE_PLAN }}
 
       ACR_NAME: ${{ secrets.ACR_NAME }}
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
       WEB_CLIENT_APP_NAME: ${{ secrets.WEB_CLIENT_APP_NAME }}
       EXAMPLE_SERVER_APP_NAME: ${{ secrets.EXAMPLE_SERVER_APP_NAME }}
 
@@ -40,11 +41,12 @@ jobs:
         env:
           ACR_ADMINUSER: ${{ secrets.ACR_ADMINUSER }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
         run: |
           set -euo pipefail
           missing=0
 
-          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME; do
+          for var in AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP ACR_NAME WEB_CLIENT_APP_NAME EXAMPLE_SERVER_APP_NAME ACR_LOGIN_SERVER; do
             if [ -z "${!var:-}" ]; then
               echo "::error title=Missing secret::${var} is required"
               missing=1
@@ -73,13 +75,19 @@ jobs:
 
       - name: Resolve ACR login server (source of truth) + mask
         shell: bash
+        env:
+          ACR_LOGIN_SERVER_SECRET: ${{ secrets.ACR_LOGIN_SERVER }}
         run: |
           set -euo pipefail
-          LOGIN_SERVER="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)"
+          LOGIN_SERVER="${ACR_LOGIN_SERVER_SECRET:-${ACR_LOGIN_SERVER:-}}"
           if [ -z "$LOGIN_SERVER" ]; then
-            echo "::error title=ACR Not Found::Could not resolve loginServer for ACR_NAME=$ACR_NAME"
-            exit 1
+            LOGIN_SERVER="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)"
+            if [ -z "$LOGIN_SERVER" ]; then
+              echo "::error title=ACR Not Found::Could not resolve loginServer for ACR_NAME=$ACR_NAME"
+              exit 1
+            fi
           fi
+
           echo "ACR_LOGIN_SERVER=$LOGIN_SERVER" >> "$GITHUB_ENV"
           echo "::add-mask::$LOGIN_SERVER"
 
@@ -190,11 +198,10 @@ jobs:
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --settings WEBSITES_PORT=80
 
-            az webapp config set \
+            az webapp update \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-
-
+              --set siteConfig.healthCheckPath="/readyz"
 
       - name: Configure example server container + registry credentials
         uses: azure/cli@v2
@@ -219,8 +226,7 @@ jobs:
               --resource-group "$AZURE_RESOURCE_GROUP" \
               --settings WEBSITES_PORT=8080
 
-            az webapp config set \
+            az webapp update \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-
-
+              --set siteConfig.healthCheckPath="/healthz"
