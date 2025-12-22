@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: TestEngineer
+Task: continue developing the software
+Context:
+- No automated coverage existed for runtime-config generation or malformed OIDC scope input; failures manifested only at runtime.
+- The Azure containers workflow lacked assertions around healthCheckPath lines, allowing drift from documentation.
+Position:
+- Add targeted tests to exercise entrypoint.sh under multiple env combinations without invoking nginx.
+- Keep workflows under test so deployment regressions surface early.
+Recommendations:
+- Build a helper in test_web_client.py that runs entrypoint.sh with CONFIG_PATH + SKIP_NGINX, evaluates the produced JS with Node, and asserts normalized scopes/booleans.
+- Cover three branches: whitespace/comma scopes + invalid bools, JSON array scopes + explicit false, and empty scopes reverting to defaults.
+- Ensure the workflow file contains both /healthz and /readyz strings to satisfy test_workflows expectations.

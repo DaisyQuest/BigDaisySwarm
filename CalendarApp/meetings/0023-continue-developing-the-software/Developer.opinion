@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: Developer
+Task: continue developing the software
+Context:
+- runtime-config.js renders invalid JS when OIDC_SCOPES arrives as space/comma-delimited text; the error surfaces as `openid is not defined` in the browser.
+- Entry-point script is hard to test because it always writes to /usr/share and immediately execs nginx.
+- Azure deployment workflow was missing health check configuration for both containers.
+Position:
+- Implement defensive parsing in entrypoint.sh while keeping the script POSIX-friendly for the nginx base image.
+- Add test hooks (CONFIG_PATH override, SKIP_NGINX) to validate config generation in CI.
+- Reinstate healthCheckPath settings directly in the workflow script to satisfy probes and existing docs/tests.
+Recommendations:
+- Add escape/normalize helpers for strings, booleans, and scopes before templating the config file.
+- Extend test_web_client.py with runtime-config generation checks for JSON arrays, space-delimited scopes, empty defaults, and boolean coercion.
+- Patch .github/workflows/azure-containers.yml to set /healthz for the web client and /readyz for the example server via az webapp update.

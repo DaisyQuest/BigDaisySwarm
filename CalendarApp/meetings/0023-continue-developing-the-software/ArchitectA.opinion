@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: ArchitectA
+Task: continue developing the software
+Context:
+- Web client fails at startup when runtime-config.js emits unquoted scope identifiers (e.g., bare `openid`).
+- Runtime config generation currently trusts environment input and lacks test hooks.
+- Azure deployment workflow lost explicit health check wiring, breaking readiness expectations.
+Position:
+- Favor hardening the runtime configuration writer so malformed environment variables cannot break the client bootstrap.
+- Introduce toggles that make the entrypoint testable without invoking nginx to encourage coverage.
+Recommendations:
+- Normalize booleans and scope lists inside entrypoint.sh, defaulting invalid values to safe defaults.
+- Escape config strings before writing runtime-config.js and allow CONFIG_PATH override plus SKIP_NGINX for tests.
+- Restore healthCheckPath settings in the Azure containers workflow for both web client (/healthz) and example server (/readyz).

@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -8,6 +9,7 @@ UI_TEMPLATES = WEB_ROOT / "ui_templates.mjs"
 INDEX_HTML = WEB_ROOT / "index.html"
 DOCKERFILE = WEB_ROOT / "Dockerfile"
 NGINX_CONF = WEB_ROOT / "nginx.conf"
+ENTRYPOINT = WEB_ROOT / "entrypoint.sh"
 
 
 def run_node_json(script: str) -> dict:
@@ -323,6 +325,45 @@ console.log(JSON.stringify({{
     assert any("Remote save failed" in warning for warning in result["warnings"])
     assert any("Remote load failed" in warning for warning in result["warnings"])
     assert result["resolvedSync"] is True
+
+
+def build_runtime_config(tmp_path, env=None):
+    config_path = tmp_path / f"runtime-config-{len(list(tmp_path.iterdir()))}.js"
+    run_env = os.environ.copy()
+    run_env.update({"CONFIG_PATH": str(config_path), "SKIP_NGINX": "1"})
+    if env:
+        run_env.update(env)
+    subprocess.run(["sh", str(ENTRYPOINT)], check=True, env=run_env)
+    script = f"""
+import fs from 'node:fs';
+const window = {{}};
+global.window = window;
+eval(fs.readFileSync('{config_path.as_posix()}', 'utf-8'));
+console.log(JSON.stringify(window.__CALENDAR_APP_CONFIG__));
+"""
+    return run_node_json(script), config_path.read_text(encoding="utf-8")
+
+
+def test_entrypoint_normalizes_scope_inputs_and_booleans(tmp_path):
+    config, text = build_runtime_config(
+        tmp_path,
+        {"OIDC_SCOPES": "openid profile email calendar.read calendar.write", "SYNC_ENABLED": "maybe", "USE_LOCAL_STORAGE": "0"},
+    )
+    assert config["auth"]["scopes"] == ["openid", "profile", "email", "calendar.read", "calendar.write"]
+    assert config["syncEnabled"] is True
+    assert config["useLocalStorage"] is False
+    assert "scopes: openid" not in text
+
+    json_config, _ = build_runtime_config(
+        tmp_path, {"OIDC_SCOPES": '["space:1","scope-two"]', "SYNC_ENABLED": "false", "USE_LOCAL_STORAGE": "false"}
+    )
+    assert json_config["auth"]["scopes"] == ["space:1", "scope-two"]
+    assert json_config["syncEnabled"] is False
+    assert json_config["useLocalStorage"] is False
+
+    default_config, text_with_default = build_runtime_config(tmp_path, {"OIDC_SCOPES": " , , "})
+    assert default_config["auth"]["scopes"][0] == "openid"
+    assert '["openid","profile","email","calendar.read","calendar.write"]' in text_with_default
 
 
 def test_ui_templates_and_shell():
