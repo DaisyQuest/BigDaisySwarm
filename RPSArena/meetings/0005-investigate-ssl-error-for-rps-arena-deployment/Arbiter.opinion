@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0005-investigate-ssl-error-for-rps-arena-deployment
+Agent: Arbiter
+Task: Investigate SSL error for RPS Arena deployment
+Context:
+  - User-facing symptom: ERR_SSL_PROTOCOL_ERROR when hitting the Azure site; pipeline shows green.
+  - Proxy prevents direct verification (CONNECT 403), so we rely on code paths and workflow state.
+  - Startup depended on Mongo connectivity; a failed connection likely prevented the server from binding, causing TLS/protocol failures.
+  - Azure container workflow regressed by omitting healthCheckPath strings required by prior decisions.
+Position:
+  - The safest interpretation is a crash-loop from Mongo failures rather than an SSL configuration issue—Azure terminates TLS.
+  - Ensure the server always boots (fallback store) and keep workflow probes explicit.
+Recommendations:
+  - Approve a bootstrap module that logs Mongo failures, falls back to in-memory, and wires services plus a shared JSON responder.
+  - Reinstate healthCheckPath for both apps in the Azure workflow.
+  - Confirm with full test coverage (npm test + pytest --maxfail=1).

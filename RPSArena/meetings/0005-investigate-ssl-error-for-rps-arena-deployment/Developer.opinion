@@ -1,0 +1,17 @@
+# Opinion
+
+Meeting: 0005-investigate-ssl-error-for-rps-arena-deployment
+Agent: Developer
+Task: Investigate SSL error for RPS Arena deployment
+Context:
+  - User reported ERR_SSL_PROTOCOL_ERROR when browsing the Azure App Service host; pipeline claims success.
+  - Curl via the provided proxy returns HTTP 403 from the proxy tunnel, so the env cannot validate the public endpoint directly.
+  - Server bootstrap previously awaited MongoDB unconditionally when MONGODB_URI was set; failures would prevent the process from starting.
+  - Azure containers workflow tests failed because healthCheckPath entries drifted.
+Position:
+  - Likely root cause for “invalid response” is the app process not starting (e.g., failing MongoDB connection) leading Azure to return TLS errors/502s.
+  - Proxy restrictions in this environment prevent verifying the live site, but logs plus workflow signals point to runtime crash risk when Mongo is unreachable.
+Recommendations:
+  - Make bootstrap resilient: attempt MongoDB, log failures, but fall back to the in-memory store so the app still responds.
+  - Keep JSON response handling reusable to reduce duplication in server routes.
+  - Restore healthCheckPath settings in the Azure container workflow to keep deployments green and App Service health probes correct.

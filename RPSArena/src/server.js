@@ -4,39 +4,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { MODES, VARIANTS } from "./constants.js";
-import { InMemoryStore } from "./data/inMemoryStore.js";
-import { MongoStore } from "./data/mongoStore.js";
-import { MatchService } from "./services/matchService.js";
-import { UnlockableService } from "./services/unlockableService.js";
-import { UserService } from "./services/userService.js";
+import { buildServices, createJsonResponder } from "./services/bootstrap.js";
 import { requireFields } from "./utils/validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "../public");
-
-async function chooseStore() {
-  const uri = process.env.MONGODB_URI;
-  if (uri) {
-    const { store, client } = await MongoStore.connect(uri, process.env.MONGODB_DB || "rpsarena");
-    process.on("exit", () => client.close());
-    return store;
-  }
-  return new InMemoryStore();
-}
-
-async function buildServices() {
-  const store = await chooseStore();
-  const userService = new UserService(store);
-  const unlockableService = new UnlockableService(store);
-  const matchService = new MatchService(store, userService, unlockableService);
-  return { store, userService, matchService };
-}
-
-function json(res, status, payload) {
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(payload));
-}
 
 async function parseBody(req) {
   const chunks = [];
@@ -91,26 +64,27 @@ const servicesPromise = buildServices();
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  const json = createJsonResponder(res);
   if (url.pathname.startsWith("/api/")) {
     const { userService, matchService } = await servicesPromise;
     try {
       if (url.pathname === "/api/register" && req.method === "POST") {
         const payload = await parseBody(req);
         const user = await userService.registerUser(payload);
-        return json(res, 201, user);
+        return json(201, user);
       }
 
       if (url.pathname === "/api/login" && req.method === "POST") {
         const payload = await parseBody(req);
         const user = await userService.authenticate(payload.email, payload.password);
-        return json(res, 200, user);
+        return json(200, user);
       }
 
       if (url.pathname === "/api/avatar" && req.method === "PATCH") {
         const payload = await parseBody(req);
         requireFields(payload, ["userId", "avatarColor"]);
         const user = await userService.updateAvatar(payload.userId, payload.avatarColor);
-        return json(res, 200, user);
+        return json(200, user);
       }
 
       if (url.pathname === "/api/leaderboard" && req.method === "GET") {
@@ -118,7 +92,7 @@ const server = http.createServer(async (req, res) => {
         const offset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
         const variant = url.searchParams.get("variant") || VARIANTS.RANKED;
         const board = await userService.leaderboard(limit, offset, variant);
-        return json(res, 200, board);
+        return json(200, board);
       }
 
       if (url.pathname === "/api/highscores" && req.method === "GET") {
@@ -126,14 +100,14 @@ const server = http.createServer(async (req, res) => {
         const pageSize = Number.parseInt(url.searchParams.get("pageSize") || "25", 10);
         const variant = url.searchParams.get("variant") || VARIANTS.RANKED;
         const scores = await userService.highScores(page, pageSize, variant);
-        return json(res, 200, scores);
+        return json(200, scores);
       }
 
       if (url.pathname === "/api/history" && req.method === "GET") {
         const playerId = url.searchParams.get("playerId") || undefined;
         const rankedOnly = parseBoolean(url.searchParams.get("rankedOnly"));
         const history = await matchService.history(playerId, rankedOnly);
-        return json(res, 200, history);
+        return json(200, history);
       }
 
       if (url.pathname === "/api/matchmaking" && req.method === "POST") {
@@ -144,25 +118,25 @@ const server = http.createServer(async (req, res) => {
           variant: payload.variant,
           roundCount: payload.roundCount || 3,
         });
-        return json(res, 200, response);
+        return json(200, response);
       }
 
       if (url.pathname === "/api/match/submit" && req.method === "POST") {
         const payload = await parseBody(req);
         requireFields(payload, ["matchId", "userId"]);
         const outcome = await matchService.submitMoves(payload.matchId, payload.userId, payload);
-        return json(res, 200, outcome);
+        return json(200, outcome);
       }
 
       if (url.pathname === "/api/news" && req.method === "GET") {
         const { store } = await servicesPromise;
         const news = await store.listNews();
-        return json(res, 200, news);
+        return json(200, news);
       }
 
       return notFound(res);
     } catch (error) {
-      return json(res, 400, { error: error.message });
+      return json(400, { error: error.message });
     }
   }
 

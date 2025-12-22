@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0005-investigate-ssl-error-for-rps-arena-deployment
+Agent: TestEngineer
+Task: Investigate SSL error for RPS Arena deployment
+Context:
+  - Live host shows ERR_SSL_PROTOCOL_ERROR; we cannot hit it due to proxy 403 on CONNECT.
+  - Server previously failed hard if MongoDB connection (MONGODB_URI) was unreachable, which would stop the listener entirely.
+  - Workflow test failure highlighted missing healthCheckPath entries in .github/workflows/azure-containers.yml.
+Position:
+  - Treat resilience as testable behavior: bootstrap should fall back to in-memory on Mongo errors and surface JSON responses instead of crashing.
+  - Workflow should keep explicit healthCheckPath strings so CI validates probe configuration.
+Recommendations:
+  - Add unit coverage for bootstrap paths (Mongo success, failure fallback, default responder) to maintain 100% coverage.
+  - Reintroduce healthCheckPath="/healthz" and "/readyz" in the Azure workflow to satisfy tests and Azure probes.
+  - Run npm test (c8 --100 node --test) and repo-level pytest --maxfail=1 to guard against regressions.
