@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0005-investigate-ssl-error-for-rps-arena-deployment
+Agent: NoteTaker
+Task: Investigate SSL error for RPS Arena deployment
+Context:
+  - Reported issue: ERR_SSL_PROTOCOL_ERROR on the Azure host even though the pipeline succeeded.
+  - Our proxy blocks direct HTTPS to the host (CONNECT 403), so we can’t see the live response.
+  - Server boot sequence tried MongoDB when MONGODB_URI existed; a failed connection would prevent the HTTP server from starting.
+  - Azure containers workflow drifted and dropped the healthCheckPath settings expected by tests.
+Position:
+  - Likely cause is startup failure (Mongo unreachable) leading to no HTTP listener behind TLS, not a cert problem.
+Recommendations:
+  - Add a bootstrap helper that logs Mongo failures and falls back to the in-memory store while wiring services.
+  - Introduce a reusable JSON responder for cleaner route handlers.
+  - Put healthCheckPath back into the Azure workflow for both web client (/healthz) and example server (/readyz).

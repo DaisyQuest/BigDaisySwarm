@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0005-investigate-ssl-error-for-rps-arena-deployment
+Agent: Critic
+Task: Investigate SSL error for RPS Arena deployment
+Context:
+  - Azure endpoint returns ERR_SSL_PROTOCOL_ERROR to the user; proxy here blocks validation with a 403 tunnel failure.
+  - Service boot previously assumed MongoDB would always be reachable when configured, so a failed connection could crash the process before binding a port.
+  - Azure container workflow was missing healthCheckPath strings the tests enforce.
+Position:
+  - Primary risk is crash-on-start when Mongo is down, not certificates; App Service TLS should be fine if the app actually responds.
+  - Tests already mandate healthCheckPath; keeping them in the workflow avoids future regressions.
+Recommendations:
+  - Make store selection resilient and log Mongo failures while falling back to in-memory so the server stays up.
+  - Factor JSON response handling into a helper to avoid repetition in server routes.
+  - Restore healthCheckPath lines in the deployment workflow to satisfy probes and existing tests.
