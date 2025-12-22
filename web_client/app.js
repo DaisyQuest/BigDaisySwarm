@@ -5,6 +5,7 @@ import { OidcSession } from './auth.mjs';
 import { BasicAuth } from './basic_auth.mjs';
 import { isOidcConfigComplete, shouldUseBasicAuthFallback } from './auth_config.mjs';
 import { createRemoteAdapter } from './remote_adapter.mjs';
+import { describeSyncState, scopedStorageKey } from './sync_status.mjs';
 
 const state = {
   calendarId: null,
@@ -12,7 +13,7 @@ const state = {
   rangeEnd: null,
 };
 
-function createSyncedStorage(baseStorage, remoteAdapter, { onError } = {}) {
+function createSyncedStorage(baseStorage, remoteAdapter, { onError, onSuccess } = {}) {
   return {
     load() {
       return baseStorage.load();
@@ -21,6 +22,11 @@ function createSyncedStorage(baseStorage, remoteAdapter, { onError } = {}) {
       baseStorage.save(snapshot);
       Promise.resolve()
         .then(() => remoteAdapter.save(snapshot))
+        .then(() => {
+          if (onSuccess) {
+            onSuccess();
+          }
+        })
         .catch((error) => {
           if (onError) {
             onError(error);
@@ -30,97 +36,174 @@ function createSyncedStorage(baseStorage, remoteAdapter, { onError } = {}) {
   };
 }
 
-function describeSyncMode(config, remoteActive) {
-  if (remoteActive) {
-    return `Sync: Remote (${config.apiBaseUrl || 'adapter'})`;
-  }
-  if (config.syncEnabled && !remoteActive) {
-    return 'Sync: Local (remote unavailable)';
-  }
-  return 'Sync: Local only';
+function createSyncController({ config, baseStorage, remoteAdapter, syncState, updateStatus }) {
+  let statusElement = null;
+
+  const label = () =>
+    describeSyncState({
+      ...config,
+      remoteActive: syncState.remoteActive,
+      lastError: syncState.lastError,
+    });
+  const render = () => {
+    if (statusElement) {
+      statusElement.textContent = label();
+    }
+  };
+  const mark = (active, errorMessage = '') => {
+    syncState.remoteActive = Boolean(active);
+    syncState.lastError = errorMessage;
+    render();
+  };
+
+  const storage = remoteAdapter
+    ? createSyncedStorage(baseStorage, remoteAdapter, {
+        onError: (error) => {
+          const message = error?.message || 'Remote sync failed';
+          mark(false, message);
+          updateStatus(`Remote save failed: ${message}`, 'error');
+        },
+        onSuccess: () => mark(true, ''),
+      })
+    : baseStorage;
+
+  const syncNow = async (model) => {
+    if (!remoteAdapter) {
+      mark(false, 'Sync not configured');
+      updateStatus('Sync not configured; working locally.', 'error');
+      return;
+    }
+    try {
+      updateStatus('Syncing with cloud...', 'info');
+      const snapshot = await remoteAdapter.load();
+      baseStorage.save(snapshot);
+      model.replaceSnapshot(snapshot);
+      mark(true, '');
+      updateStatus('Cloud sync complete.', 'info');
+    } catch (error) {
+      const message = error?.message || 'Sync failed';
+      mark(false, message);
+      updateStatus(`Cloud sync failed: ${message}`, 'error');
+    }
+  };
+
+  return {
+    label,
+    render,
+    attach(element) {
+      statusElement = element;
+      render();
+    },
+    mark,
+    syncNow,
+    storage,
+  };
 }
 
-async function initializeClient(statusRegion, clientConfig = null) {
+async function initializeClient(statusRegion, clientConfig = null, authContext = {}) {
   const resolvedConfig = clientConfig || resolveConfig();
-  const baseStorage = createStorageFromConfig(resolvedConfig);
-  let remoteActive = false;
-  let remoteAdapter = null;
+  const scopedKey = authContext.basicSession
+    ? scopedStorageKey(resolvedConfig.storageKey, authContext.basicSession.username)
+    : resolvedConfig.storageKey;
+  const config = { ...resolvedConfig, storageKey: scopedKey };
+  const syncState = { remoteActive: false, lastError: '' };
+  const baseStorage = createStorageFromConfig({ ...config, syncEnabled: false });
 
-  const syncLabel = () => describeSyncMode(resolvedConfig, remoteActive);
+  const syncLabel = () =>
+    describeSyncState({
+      ...config,
+      remoteActive: syncState.remoteActive,
+      lastError: syncState.lastError,
+    });
   const updateStatus = (message, tone = 'info') => {
     statusRegion.innerHTML = renderStatus(`${message} · ${syncLabel()}`, tone);
   };
 
-  if (resolvedConfig.syncEnabled && !resolvedConfig.apiBaseUrl) {
-    const error = new Error('Sync enabled but apiBaseUrl is not set');
-    updateStatus(error.message, 'error');
-    throw error;
+  let remoteAdapter = null;
+
+  if (config.syncEnabled && !config.apiBaseUrl) {
+    syncState.lastError = 'apiBaseUrl not set';
+    updateStatus('Sync enabled but apiBaseUrl is not set', 'error');
   }
 
-  if (resolvedConfig.syncEnabled && resolvedConfig.apiBaseUrl && isOidcConfigComplete(resolvedConfig.auth)) {
-    let authSession;
-    try {
-      authSession = new OidcSession(resolvedConfig.auth);
-    } catch (error) {
-      updateStatus(`Auth configuration error: ${error.message}`, 'error');
-      throw error;
+  if (config.syncEnabled && config.apiBaseUrl) {
+    if (isOidcConfigComplete(config.auth)) {
+      let authSession;
+      try {
+        authSession = new OidcSession(config.auth);
+      } catch (error) {
+        updateStatus(`Auth configuration error: ${error.message}`, 'error');
+      }
+
+      if (authSession) {
+        try {
+          await authSession.handleRedirectCallback(window.location.href);
+        } catch (error) {
+          updateStatus(`Authentication failed: ${error.message}`, 'error');
+        }
+
+        if (!authSession.hasValidAccessToken()) {
+          const loginUrl = await authSession.buildAuthorizationUrl();
+          updateStatus(
+            `Sign in required. <a href="${loginUrl}">Continue with your identity provider</a>`,
+            'error'
+          );
+          const authError = new Error('Authentication required');
+          authError.loginUrl = loginUrl;
+          throw authError;
+        }
+
+        const defaultJwks = config.auth?.issuer
+          ? `${config.auth.issuer.replace(/\/$/, '')}/.well-known/jwks.json`
+          : null;
+        const jwksUri = config.auth?.jwksUri || defaultJwks;
+
+        remoteAdapter = createRemoteAdapter({
+          apiBaseUrl: config.apiBaseUrl,
+          tokenProvider: () => authSession.requireAccessToken(),
+          jwksUri,
+          issuer: config.auth?.issuer,
+          audience: config.auth?.audience || config.auth?.clientId,
+          onWarn: (message) => updateStatus(message, 'error'),
+        });
+      }
+    } else if (authContext.basicSession) {
+      remoteAdapter = createRemoteAdapter({
+        apiBaseUrl: config.apiBaseUrl,
+        tokenProvider: () => authContext.basicSession.token,
+        authScheme: 'Basic',
+        validateAccessToken: false,
+        onWarn: (message) => updateStatus(message, 'error'),
+      });
+    } else {
+      syncState.lastError = 'Authentication required';
+      updateStatus('Sync requires authentication; continuing locally.', 'error');
     }
+  }
 
-    try {
-      await authSession.handleRedirectCallback(window.location.href);
-    } catch (error) {
-      updateStatus(`Authentication failed: ${error.message}`, 'error');
-      throw error;
-    }
+  const sync = createSyncController({ config, baseStorage, remoteAdapter, syncState, updateStatus });
 
-    if (!authSession.hasValidAccessToken()) {
-      const loginUrl = await authSession.buildAuthorizationUrl();
-      updateStatus(`Sign in required. <a href="${loginUrl}">Continue with your identity provider</a>`, 'error');
-      const authError = new Error('Authentication required');
-      authError.loginUrl = loginUrl;
-      throw authError;
-    }
-
-    const defaultJwks = resolvedConfig.auth?.issuer
-      ? `${resolvedConfig.auth.issuer.replace(/\/$/, '')}/.well-known/jwks.json`
-      : null;
-    const jwksUri = resolvedConfig.auth?.jwksUri || defaultJwks;
-
-    remoteAdapter = createRemoteAdapter({
-      apiBaseUrl: resolvedConfig.apiBaseUrl,
-      tokenProvider: () => authSession.requireAccessToken(),
-      jwksUri,
-      issuer: resolvedConfig.auth?.issuer,
-      audience: resolvedConfig.auth?.audience || resolvedConfig.auth?.clientId,
-      onWarn: (message) => updateStatus(message, 'error'),
-    });
-
+  if (remoteAdapter) {
     try {
       const remoteSnapshot = await remoteAdapter.load();
       baseStorage.save(remoteSnapshot);
-      remoteActive = true;
+      sync.mark(true, '');
       updateStatus('Remote state loaded');
     } catch (error) {
-      updateStatus(`Remote sync failed: ${error.message}`, 'error');
-      throw error;
+      sync.mark(false, error?.message || 'Remote sync failed');
+      updateStatus(`Remote sync unavailable: ${error.message}`, 'error');
     }
   }
 
-  const storage = remoteAdapter
-    ? createSyncedStorage(baseStorage, remoteAdapter, {
-        onError: (error) => updateStatus(`Remote save failed: ${error.message}`, 'error'),
-      })
-    : baseStorage;
-
-  const model = new CalendarModel({ storage });
-  if (!remoteActive && model.listCalendars().length === 0) {
+  const model = new CalendarModel({ storage: sync.storage });
+  if (!syncState.remoteActive && model.listCalendars().length === 0) {
     model.importSeed(createSeedData());
   }
 
-  return { model, updateStatus };
+  return { model, updateStatus, sync };
 }
 
-function wireControls({ model, updateStatus }) {
+function wireControls({ model, updateStatus, sync }) {
   const calendarsRegion = document.querySelector('[data-region="calendars"]');
   const agendaRegion = document.querySelector('[data-region="agenda"]');
   const insightsRegion = document.querySelector('[data-region="insights"]');
@@ -129,7 +212,20 @@ function wireControls({ model, updateStatus }) {
   const rangeEnd = document.querySelector('#range-end');
   const calendarForm = document.querySelector('#calendar-form');
   const eventForm = document.querySelector('#event-form');
+  const syncButton = document.querySelector('#sync-button');
+  const syncStatus = document.querySelector('[data-region="sync-status"]');
   const refreshStatus = (message, tone = 'info') => updateStatus(message, tone);
+
+  if (syncStatus) {
+    sync.attach(syncStatus);
+  }
+  if (syncButton) {
+    syncButton.addEventListener('click', async () => {
+      syncButton.disabled = true;
+      await sync.syncNow(model);
+      syncButton.disabled = false;
+    });
+  }
 
   function syncCalendarSelect(calendars) {
     calendarSelect.innerHTML = calendars
@@ -264,14 +360,19 @@ function wireBasicAuth({ statusRegion, clientConfig }) {
     statusRegion.innerHTML = content;
   };
 
-  const startApp = async () => {
+  const startApp = async (session = null) => {
     authPanel.classList.add('hidden');
     layout.classList.remove('hidden');
     try {
-      const { model, updateStatus } = await initializeClient(statusRegion, { ...clientConfig, syncEnabled: false });
+      const scopedConfig = session
+        ? { ...clientConfig, storageKey: scopedStorageKey(clientConfig.storageKey, session.username) }
+        : clientConfig;
+      const { model, updateStatus, sync } = await initializeClient(statusRegion, scopedConfig, {
+        basicSession: session,
+      });
       prefillEventForm();
-      wireControls({ model, updateStatus });
-      updateStatus('OIDC not configured; using local basic auth.');
+      wireControls({ model, updateStatus, sync });
+      updateStatus('OIDC not configured; using basic auth for sync + local access.');
     } catch (error) {
       showStatus(error?.message || 'Unable to start the client.');
     }
@@ -281,7 +382,7 @@ function wireBasicAuth({ statusRegion, clientConfig }) {
     const existing = auth.currentSession();
     if (existing) {
       showStatus(`Signed in as ${existing.username}`, 'info');
-      startApp();
+      startApp(existing);
     } else {
       showStatus('OIDC not configured; sign up or log in with basic auth to continue.', 'error');
     }
@@ -293,7 +394,7 @@ function wireBasicAuth({ statusRegion, clientConfig }) {
     try {
       const session = auth.authenticate(data.get('username'), data.get('password'));
       showStatus(`Signed in as ${session.username}`, 'info');
-      startApp();
+      startApp(session);
     } catch (error) {
       showStatus(error.message);
     }
@@ -305,7 +406,7 @@ function wireBasicAuth({ statusRegion, clientConfig }) {
     try {
       const session = auth.register(data.get('username'), data.get('password'));
       showStatus(`Registered ${session.username}. You are now signed in.`, 'info');
-      startApp();
+      startApp(session);
     } catch (error) {
       showStatus(error.message);
     }
@@ -332,9 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const boot = async () => {
     try {
-      const { model, updateStatus } = await initializeClient(statusRegion, clientConfig);
+      const { model, updateStatus, sync } = await initializeClient(statusRegion, clientConfig);
       prefillEventForm();
-      wireControls({ model, updateStatus });
+      wireControls({ model, updateStatus, sync });
       updateStatus('Ready to weave the next calendar story.');
     } catch (error) {
       const message = error?.loginUrl

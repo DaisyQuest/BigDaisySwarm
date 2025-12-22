@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: Developer
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Implemented scoped local storage per basic-auth user, added sync status + button in the web client, and made remote sync optional/tolerant to outages.
+- Remote adapter now supports Basic auth without JWKS while still validating Bearer tokens.
+Position:
+- Local CalendarModel gains export/replace helpers so manual sync can hydrate from remote snapshots without new model plumbing.
+- Sync controller wraps storage to keep remote saves asynchronous and non-blocking but still surfaces failures.
+Recommendations:
+- Consider adding merge strategies if remote and local diverge instead of replace-only sync.
+- Keep status copy short and actionable; surface last sync error in the UI where possible.
+- Verify server contract for Basic auth headers and adjust adapter defaults if API expectations change.

@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: ArchitectB
+Task: ensure calendar sync basic auth and cloud
+Context:
+- New requirements: basic-auth registration tied to local event storage, manual sync to configured cloud server, optional OIDC, and graceful handling when the remote DB is unavailable.
+- UI needs explicit sync status plus a button to trigger pulls/pushes without blocking local workflows.
+Position:
+- Layering sync as an adapter on top of scoped local storage keeps the CalendarModel unchanged while supporting Basic or Bearer auth paths.
+- Making sync failures non-fatal preserves offline UX yet still signals risk via status messaging.
+Recommendations:
+- Keep scoped storage keys per user to prevent cross-account leakage.
+- When OIDC is configured, require tokens for sync but allow local-only use if remote readiness fails.
+- Extend remote adapter contract to accept richer auth metadata if future servers need mTLS or API keys.
