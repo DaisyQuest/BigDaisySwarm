@@ -365,6 +365,7 @@ def test_index_shell_contains_regions():
         'id="event-form"',
     ]:
         assert marker in html
+    assert '<script src="./runtime-config.js"></script>' in html
     assert '<script type="module" src="./app.js"></script>' in html
 
 
@@ -372,8 +373,94 @@ def test_web_client_dockerfile_and_nginx_conf():
     dockerfile_text = DOCKERFILE.read_text(encoding="utf-8")
     assert "nginx:1.27-alpine" in dockerfile_text
     assert "COPY web_client/nginx.conf" in dockerfile_text
+    assert "entrypoint.sh" in dockerfile_text
+    assert 'CMD ["/entrypoint.sh"]' in dockerfile_text
 
     nginx_text = NGINX_CONF.read_text(encoding="utf-8")
     assert "healthz" in nginx_text
     assert "application/javascript mjs" in nginx_text
     assert "try_files $uri $uri/ /index.html;" in nginx_text
+
+
+def test_auth_and_remote_adapter_secure_defaults():
+    script = f"""
+import crypto from 'node:crypto';
+import {{ verifyJwt, createRandomVerifier, createPkceChallenge }} from 'file://{WEB_ROOT.joinpath("auth.mjs").as_posix()}';
+import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
+
+const base64Url = (buffer) => buffer.toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+const {{ privateKey, publicKey }} = crypto.generateKeyPairSync('rsa', {{ modulusLength: 2048 }});
+const jwk = publicKey.export({{ format: 'jwk' }});
+const header = {{ alg: 'RS256', kid: 'kid-123' }};
+const payload = {{ iss: 'https://issuer.example.com', aud: 'calendar-app', exp: Math.floor(Date.now() / 1000) + 600 }};
+const signingInput = [base64Url(Buffer.from(JSON.stringify(header))), base64Url(Buffer.from(JSON.stringify(payload)))].join('.');
+const signature = crypto.createSign('RSA-SHA256').update(signingInput).end().sign(privateKey);
+const token = `${{signingInput}}.${{base64Url(signature)}}`;
+const jwks = {{ keys: [{{ ...jwk, kid: 'kid-123', alg: 'RS256' }}] }};
+const claims = await verifyJwt(token, jwks, {{ issuer: 'https://issuer.example.com', audience: 'calendar-app' }});
+let audienceError = '';
+try {{
+  await verifyJwt(token, jwks, {{ issuer: 'https://issuer.example.com', audience: 'wrong-audience' }});
+}} catch (error) {{
+  audienceError = error.message;
+}}
+const verifier = createRandomVerifier(64);
+const challenge = await createPkceChallenge(verifier);
+let saved = null;
+const adapter = createRemoteAdapter({{
+  apiBaseUrl: 'https://api.example.com',
+  jwksUri: 'https://issuer.example.com/jwks',
+  issuer: 'https://issuer.example.com',
+  audience: 'calendar-app',
+  tokenProvider: () => token,
+  fetchImpl: async (url, options = {{}}) => {{
+    if (url.includes('/jwks')) {{
+      return new Response(JSON.stringify(jwks), {{ status: 200, headers: {{ 'Content-Type': 'application/json' }} }});
+    }}
+    if (url.endsWith('/state') && (options.method || 'GET') === 'GET') {{
+      return new Response(JSON.stringify({{ calendars: [{{ id: 'remote', name: 'Remote' }}], events: [] }}), {{ status: 200, headers: {{ 'Content-Type': 'application/json' }} }});
+    }}
+    if (url.endsWith('/state') && options.method === 'PUT') {{
+      saved = JSON.parse(options.body);
+      return new Response('', {{ status: 200 }});
+    }}
+    throw new Error('unexpected url ' + url);
+  }},
+}});
+const loaded = await adapter.load();
+await adapter.save({{ calendars: [], events: [] }});
+console.log(JSON.stringify({{
+  iss: claims.iss,
+  calendar: loaded.calendars[0].id,
+  savedEvents: saved.events.length,
+  challengeLength: challenge.length,
+  audienceError: audienceError.includes('Audience mismatch'),
+}}));
+"""
+    result = run_node_json(script)
+    assert result["iss"] == "https://issuer.example.com"
+    assert result["calendar"] == "remote"
+    assert result["savedEvents"] == 0
+    assert result["challengeLength"] >= 43
+    assert result["audienceError"] is True
+
+
+def test_oidc_session_rejects_insecure_urls():
+    script = f"""
+import {{ OidcSession }} from 'file://{WEB_ROOT.joinpath("auth.mjs").as_posix()}';
+let message = '';
+try {{
+  new OidcSession({{
+    authorizationEndpoint: 'http://issuer.example.com/authorize',
+    tokenEndpoint: 'http://issuer.example.com/oauth/token',
+    issuer: 'http://issuer.example.com/',
+    clientId: 'web',
+    redirectUri: 'http://client.example.com/callback',
+  }});
+}} catch (error) {{
+  message = error.message;
+}}
+console.log(JSON.stringify({{ message }}));
+"""
+    result = run_node_json(script)
+    assert "Insecure URL blocked" in result["message"]

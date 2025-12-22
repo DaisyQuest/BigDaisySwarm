@@ -1,6 +1,8 @@
 import { CalendarModel, createSeedData } from './calendar_model.mjs';
 import { createStorageFromConfig, resolveConfig } from './config.mjs';
 import { renderAgenda, renderCalendarList, renderInsights, renderStatus } from './ui_templates.mjs';
+import { OidcSession } from './auth.mjs';
+import { createRemoteAdapter } from './remote_adapter.mjs';
 
 const state = {
   calendarId: null,
@@ -8,40 +10,124 @@ const state = {
   rangeEnd: null,
 };
 
-const clientConfig = resolveConfig();
-const storage = createStorageFromConfig(clientConfig);
-const model = new CalendarModel({ storage });
-
-function ensureSeeds() {
-  if (model.listCalendars().length === 0) {
-    model.importSeed(createSeedData());
-  }
+function createSyncedStorage(baseStorage, remoteAdapter, { onError } = {}) {
+  return {
+    load() {
+      return baseStorage.load();
+    },
+    save(snapshot) {
+      baseStorage.save(snapshot);
+      Promise.resolve()
+        .then(() => remoteAdapter.save(snapshot))
+        .catch((error) => {
+          if (onError) {
+            onError(error);
+          }
+        });
+    },
+  };
 }
 
-function wireControls() {
+function describeSyncMode(config, remoteActive) {
+  if (remoteActive) {
+    return `Sync: Remote (${config.apiBaseUrl || 'adapter'})`;
+  }
+  if (config.syncEnabled && !remoteActive) {
+    return 'Sync: Local (remote unavailable)';
+  }
+  return 'Sync: Local only';
+}
+
+async function initializeClient(statusRegion) {
+  const clientConfig = resolveConfig();
+  const baseStorage = createStorageFromConfig(clientConfig);
+  let remoteActive = false;
+  let remoteAdapter = null;
+
+  const syncLabel = () => describeSyncMode(clientConfig, remoteActive);
+  const updateStatus = (message, tone = 'info') => {
+    statusRegion.innerHTML = renderStatus(`${message} · ${syncLabel()}`, tone);
+  };
+
+  if (clientConfig.syncEnabled && !clientConfig.apiBaseUrl) {
+    const error = new Error('Sync enabled but apiBaseUrl is not set');
+    updateStatus(error.message, 'error');
+    throw error;
+  }
+
+  if (clientConfig.syncEnabled && clientConfig.apiBaseUrl) {
+    let authSession;
+    try {
+      authSession = new OidcSession(clientConfig.auth);
+    } catch (error) {
+      updateStatus(`Auth configuration error: ${error.message}`, 'error');
+      throw error;
+    }
+
+    try {
+      await authSession.handleRedirectCallback(window.location.href);
+    } catch (error) {
+      updateStatus(`Authentication failed: ${error.message}`, 'error');
+      throw error;
+    }
+
+    if (!authSession.hasValidAccessToken()) {
+      const loginUrl = await authSession.buildAuthorizationUrl();
+      updateStatus(`Sign in required. <a href="${loginUrl}">Continue with your identity provider</a>`, 'error');
+      const authError = new Error('Authentication required');
+      authError.loginUrl = loginUrl;
+      throw authError;
+    }
+
+    const defaultJwks = clientConfig.auth?.issuer
+      ? `${clientConfig.auth.issuer.replace(/\/$/, '')}/.well-known/jwks.json`
+      : null;
+    const jwksUri = clientConfig.auth?.jwksUri || defaultJwks;
+
+    remoteAdapter = createRemoteAdapter({
+      apiBaseUrl: clientConfig.apiBaseUrl,
+      tokenProvider: () => authSession.requireAccessToken(),
+      jwksUri,
+      issuer: clientConfig.auth?.issuer,
+      audience: clientConfig.auth?.audience || clientConfig.auth?.clientId,
+      onWarn: (message) => updateStatus(message, 'error'),
+    });
+
+    try {
+      const remoteSnapshot = await remoteAdapter.load();
+      baseStorage.save(remoteSnapshot);
+      remoteActive = true;
+      updateStatus('Remote state loaded');
+    } catch (error) {
+      updateStatus(`Remote sync failed: ${error.message}`, 'error');
+      throw error;
+    }
+  }
+
+  const storage = remoteAdapter
+    ? createSyncedStorage(baseStorage, remoteAdapter, {
+        onError: (error) => updateStatus(`Remote save failed: ${error.message}`, 'error'),
+      })
+    : baseStorage;
+
+  const model = new CalendarModel({ storage });
+  if (!remoteActive && model.listCalendars().length === 0) {
+    model.importSeed(createSeedData());
+  }
+
+  return { model, updateStatus };
+}
+
+function wireControls({ model, updateStatus }) {
   const calendarsRegion = document.querySelector('[data-region="calendars"]');
   const agendaRegion = document.querySelector('[data-region="agenda"]');
   const insightsRegion = document.querySelector('[data-region="insights"]');
-  const statusRegion = document.querySelector('[data-region="status"]');
   const calendarSelect = document.querySelector('#calendar-select');
   const rangeStart = document.querySelector('#range-start');
   const rangeEnd = document.querySelector('#range-end');
   const calendarForm = document.querySelector('#calendar-form');
   const eventForm = document.querySelector('#event-form');
-
-  function describeSyncMode() {
-    if (clientConfig.syncEnabled && clientConfig.remoteAdapter) {
-      return `Sync: Remote (${clientConfig.apiBaseUrl || 'custom adapter'})`;
-    }
-    if (clientConfig.syncEnabled && !clientConfig.remoteAdapter) {
-      return 'Sync: Local (remote adapter missing)';
-    }
-    return 'Sync: Local only';
-  }
-
-  function refreshStatus(message, tone = 'info') {
-    statusRegion.innerHTML = renderStatus(`${message} · ${describeSyncMode()}`, tone);
-  }
+  const refreshStatus = (message, tone = 'info') => updateStatus(message, tone);
 
   function syncCalendarSelect(calendars) {
     calendarSelect.innerHTML = calendars
@@ -163,7 +249,19 @@ function prefillEventForm() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  ensureSeeds();
-  prefillEventForm();
-  wireControls();
+  const statusRegion = document.querySelector('[data-region="status"]');
+  const boot = async () => {
+    try {
+      const { model, updateStatus } = await initializeClient(statusRegion);
+      prefillEventForm();
+      wireControls({ model, updateStatus });
+      updateStatus('Ready to weave the next calendar story.');
+    } catch (error) {
+      const message = error?.loginUrl
+        ? `Authentication required. <a href="${error.loginUrl}">Continue with your identity provider</a>`
+        : error?.message || 'Unable to start the client.';
+      statusRegion.innerHTML = renderStatus(message, 'error');
+    }
+  };
+  boot();
 });

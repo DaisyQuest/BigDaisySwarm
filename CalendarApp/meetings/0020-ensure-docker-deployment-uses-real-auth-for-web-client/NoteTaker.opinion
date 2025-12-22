@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: NoteTaker
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Web client needed to stop showing seed data in prod and instead require real API + OIDC with secure crypto.
+- Docker builds also needed a runtime-config bridge for issuer/client details.
+Position:
+- Team aligned on enforcing HTTPS + JWKS for any remote sync and failing fast when `apiBaseUrl` or OIDC inputs are missing.
+- Runtime entrypoint now writes `runtime-config.js` from env vars; app.js blocks until tokens are present and verified.
+Recommendations:
+- Validate `/state` contract against the live backend and schedule a smoke that exercises JWKS fetch + auth redirect to prevent regressions.
+- Capture auth failure telemetry in the client to speed debugging when issuer or config drift occurs post-deploy.
