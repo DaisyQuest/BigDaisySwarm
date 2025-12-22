@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: Critic
+Task: Add login flow and bot matchmaking
+Context:
+  - Users currently juggle player IDs manually; without login state the UX is brittle.
+  - Bot play must not leak credentials and needs proper validation/queue safety.
+  - New branches risk breaking the strict 100% coverage bar.
+Position:
+  - Require authenticated state for matchmaking/avatar actions, and provide clear feedback when unauthenticated.
+  - Ensure `playBot` hydrates sanitized profiles, validates round counts, and reuses/creates a single bot user without duplicating records.
+Recommendations:
+  - Guard UI actions with auth checks, remove userId fields, and surface errors gracefully.
+  - Test bot provisioning, reuse, and invalid round counts; keep coverage at 100% with c8 and pytest runs.

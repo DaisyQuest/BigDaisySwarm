@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: Developer
+Task: Add login flow and bot matchmaking
+Context:
+  - UI still asks for player IDs in matchmaking/profile flows and lacks a login view/state keeper.
+  - Need a bot-play button for quick manual tests; service must support bot creation and match hydration.
+  - Coverage requirement remains 100% for statements/branches/functions.
+Position:
+  - Store a `currentUser` after login/registration, remove userId inputs, and drive matchmaking/avatar/history with that state.
+  - Add `playBot` to `MatchService` plus server routing via a `playBot` flag on `/api/matchmaking`, with bot user provisioning.
+Recommendations:
+  - Update main.js/index.html for login navigation, user summary, and bot queue button; guard actions when unauthenticated.
+  - Add tests for bot creation/reuse, round-count validation, and active-match polling; rerun npm test (c8 --100) and repo pytest.

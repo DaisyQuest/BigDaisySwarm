@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: ArchitectB
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - Polling the `/api/matchmaking` endpoint is the only way for the first player to learn about a pairing, yet the service currently raises an error for duplicate queues.
+  - Match records lack embedded player details, so even when a pairing occurs the client cannot render players without extra lookups.
+  - Coverage must stay at 100%, so any workflow change needs mirrored branch tests.
+Position:
+  - Treat repeated enqueue calls as status checks, surfacing either the queued state or the active match so the frontend can transition.
+  - Embed sanitized player profiles on match creation while rejecting pairings if player records are missing, preventing "phantom" games.
+Recommendations:
+  - Add an active-match lookup by player, hydrate matches during `createMatch`, and return the hydrated match when players poll the queue post-pairing.
+  - Guard queue pops with try/catch so failures reinsert the waiting player, and expand tests to cover both success and failure transitions.

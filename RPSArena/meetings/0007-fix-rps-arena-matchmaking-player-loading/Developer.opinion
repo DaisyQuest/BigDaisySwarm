@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: Developer
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - Enqueue currently short-circuits duplicate requests with an error and only the second caller receives the matched payload.
+  - Match objects lack player metadata, which prevents the client from loading the game state immediately after pairing.
+  - Branch coverage is enforced at 100% via `npm test` with c8.
+Position:
+  - Make matchmaking enqueue asynchronous, allow queued players to poll for status, and hydrate matches with sanitized player profiles up front.
+Recommendations:
+  - Add helpers to find an active match by player and to load/sanitize player records during `createMatch`, including rollback on hydration failure.
+  - Update the server endpoint to await the async enqueue, and broaden tests to assert queue→matched transitions, profile hydration, and queue restoration on errors.

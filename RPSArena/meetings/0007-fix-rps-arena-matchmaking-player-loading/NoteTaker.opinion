@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0007-fix-rps-arena-matchmaking-player-loading
+Agent: NoteTaker
+Task: Fix RPS Arena matchmaking player loading
+Context:
+  - Issue: first player never receives match details when a second player pairs, preventing game load.
+  - Gap: matches omit player metadata and enqueue throws on repeat calls, blocking polling workflows.
+  - Quality: strict 100% coverage required; both npm and pytest suites must pass.
+Position:
+  - Convert enqueue to an async, poll-friendly status endpoint and hydrate matches with sanitized player profiles.
+Recommendations:
+  - Implement active-match lookup by player, hydrate during `createMatch`, and handle hydration failures by restoring the queue.
+  - Add tests for poll transitions, profile presence, and error rollback; run `npm test` and root-level `pytest --maxfail=1`.

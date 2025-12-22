@@ -2,13 +2,18 @@ import { renderHighscores, renderLeaderboard, renderMatchHistory, renderNews, st
 
 const registrationForm = document.getElementById("registration-form");
 const registrationFeedback = document.getElementById("registration-feedback");
+const loginForm = document.getElementById("login-form");
+const loginFeedback = document.getElementById("login-feedback");
 const navRegister = document.getElementById("nav-register");
+const navLogin = document.getElementById("nav-login");
 const navHome = document.getElementById("nav-home");
 const homeSection = document.getElementById("home");
 const registrationSection = document.getElementById("registration");
+const loginSection = document.getElementById("login");
 const newsFeed = document.getElementById("news-feed");
 const queueForm = document.getElementById("queue-form");
 const queueFeedback = document.getElementById("queue-feedback");
+const queueBotButton = document.getElementById("queue-bot");
 const leaderboardEl = document.getElementById("leaderboard");
 const avatarForm = document.getElementById("avatar-form");
 const avatarFeedback = document.getElementById("avatar-feedback");
@@ -20,22 +25,39 @@ const highscorePage = document.getElementById("highscore-page");
 const highscoreSize = document.getElementById("highscore-size");
 const highscoresEl = document.getElementById("highscores");
 const loadHighscoresButton = document.getElementById("load-highscores");
+const userSummary = document.getElementById("user-summary");
+
+let currentUser = null;
 
 function showHome() {
   registrationSection.classList.add("hidden");
+  loginSection.classList.add("hidden");
   homeSection.classList.remove("hidden");
   navHome.classList.add("active");
   navRegister.classList.remove("active");
+  navLogin.classList.remove("active");
 }
 
 function showRegistration() {
   registrationSection.classList.remove("hidden");
+  loginSection.classList.add("hidden");
   homeSection.classList.add("hidden");
   navRegister.classList.add("active");
+  navHome.classList.remove("active");
+  navLogin.classList.remove("active");
+}
+
+function showLogin() {
+  loginSection.classList.remove("hidden");
+  registrationSection.classList.add("hidden");
+  homeSection.classList.add("hidden");
+  navLogin.classList.add("active");
+  navRegister.classList.remove("active");
   navHome.classList.remove("active");
 }
 
 navRegister.addEventListener("click", showRegistration);
+navLogin.addEventListener("click", showLogin);
 navHome.addEventListener("click", () => {
   showHome();
   refreshHomeData();
@@ -57,12 +79,26 @@ function setFeedback(el, message, isError = false) {
   el.innerHTML = statusMessage(message, isError ? "error" : "success");
 }
 
+function updateUserSummary(user) {
+  if (!user) {
+    userSummary.textContent = "Not logged in";
+    return;
+  }
+  userSummary.textContent = `${user.username} — ${user.id}`;
+}
+
+function setCurrentUser(user) {
+  currentUser = user;
+  updateUserSummary(user);
+}
+
 registrationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(registrationForm);
   const payload = Object.fromEntries(formData.entries());
   try {
     const user = await api("/api/register", { method: "POST", body: JSON.stringify(payload) });
+    setCurrentUser(user);
     setFeedback(registrationFeedback, `Registered ${user.username}. Your player id: ${user.id}`);
     showHome();
     refreshHomeData();
@@ -71,9 +107,36 @@ registrationForm.addEventListener("submit", async (event) => {
   }
 });
 
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const payload = Object.fromEntries(new FormData(loginForm).entries());
+  try {
+    const user = await api("/api/login", { method: "POST", body: JSON.stringify(payload) });
+    setCurrentUser(user);
+    setFeedback(loginFeedback, `Welcome back, ${user.username}`);
+    showHome();
+    refreshHomeData();
+  } catch (error) {
+    setFeedback(loginFeedback, error.message, true);
+  }
+});
+
+function requireAuth(feedbackEl) {
+  if (!currentUser) {
+    setFeedback(feedbackEl, "Please login or register first.", true);
+    throw new Error("Authentication required");
+  }
+}
+
 queueForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  try {
+    requireAuth(queueFeedback);
+  } catch {
+    return;
+  }
   const payload = Object.fromEntries(new FormData(queueForm).entries());
+  payload.userId = currentUser.id;
   payload.roundCount = Number(payload.roundCount || 3);
   try {
     const status = await api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
@@ -87,9 +150,33 @@ queueForm.addEventListener("submit", async (event) => {
   }
 });
 
+queueBotButton.addEventListener("click", async () => {
+  try {
+    requireAuth(queueFeedback);
+  } catch {
+    return;
+  }
+  const payload = Object.fromEntries(new FormData(queueForm).entries());
+  payload.userId = currentUser.id;
+  payload.roundCount = Number(payload.roundCount || 3);
+  payload.playBot = true;
+  try {
+    const status = await api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
+    setFeedback(queueFeedback, `Bot match ready! Match id: ${status.match.id}`);
+  } catch (error) {
+    setFeedback(queueFeedback, error.message, true);
+  }
+});
+
 avatarForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  try {
+    requireAuth(avatarFeedback);
+  } catch {
+    return;
+  }
   const payload = Object.fromEntries(new FormData(avatarForm).entries());
+  payload.userId = currentUser.id;
   try {
     const user = await api("/api/avatar", { method: "PATCH", body: JSON.stringify(payload) });
     setFeedback(avatarFeedback, `Avatar updated to ${user.avatarColor}`);
@@ -128,8 +215,11 @@ async function loadHighscores() {
 }
 
 async function loadHistory() {
-  const playerId = historyUserInput.value.trim();
-  if (!playerId) return;
+  const playerId = historyUserInput.value.trim() || currentUser?.id;
+  if (!playerId) {
+    setFeedback(historyContainer, "Please login or enter a player id.", true);
+    return;
+  }
   try {
     const history = await api(`/api/history?playerId=${encodeURIComponent(playerId)}&rankedOnly=true`);
     historyContainer.innerHTML = renderMatchHistory(history);

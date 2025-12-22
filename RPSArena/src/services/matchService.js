@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
 import { MODES, VARIANTS } from "../constants.js";
+import { createUser } from "../data/modelFactories.js";
 import { eloDelta, scoreClassicMatch, scoreExtremeMatch } from "../game/rpsLogic.js";
 import { validateMode, validateMoveSequence, validateVariant } from "../utils/validation.js";
+import { hashPassword } from "../utils/crypto.js";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -12,6 +14,7 @@ export class MatchService {
     this.store = store;
     this.userService = userService;
     this.unlockableService = unlockableService;
+    this.botId = "arena-bot";
     this.queues = {
       [MODES.CLASSIC]: { [VARIANTS.RANKED]: [], [VARIANTS.CASUAL]: [] },
       [MODES.EXTREME]: { [VARIANTS.RANKED]: [], [VARIANTS.CASUAL]: [] },
@@ -19,25 +22,94 @@ export class MatchService {
     this.activeMatches = new Map();
   }
 
-  enqueue(playerId, { mode, variant, roundCount = 3 }) {
+  findActiveMatchByPlayer(playerId) {
+    for (const record of this.activeMatches.values()) {
+      if (record.match.players.includes(playerId)) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  async loadMatchPlayers(playerIds) {
+    const profiles = [];
+    for (const id of playerIds) {
+      const player = await this.store.findUserById(id);
+      if (!player) {
+        throw new Error("Players must exist before matchmaking");
+      }
+      profiles.push(this.userService.sanitize(player));
+    }
+    return profiles;
+  }
+
+  async ensureBotUser() {
+    const existing = await this.store.findUserById(this.botId);
+    if (existing) {
+      return existing;
+    }
+    const bot = createUser({
+      id: this.botId,
+      username: "ArenaBot",
+      email: "arena-bot@rps.arena",
+      passwordHash: hashPassword("bot-credential"),
+      avatarColor: "#444444",
+    });
+    await this.store.createUser(bot);
+    return bot;
+  }
+
+  async enqueue(playerId, { mode, variant, roundCount = 3 }) {
     validateMode(mode);
     validateVariant(variant);
     if (roundCount < 1) {
       throw new Error("Round count must be at least 1");
     }
 
+    const activeMatch = this.findActiveMatchByPlayer(playerId);
+    if (activeMatch) {
+      return { status: "matched", match: clone(activeMatch.match) };
+    }
+
     if (this.isPlayerQueued(playerId)) {
-      throw new Error("Player already queued");
+      return { status: "queued" };
     }
 
     const queue = this.queues[mode][variant];
-    const existing = queue.shift();
+    const existing = queue[0];
     if (existing && existing.playerId !== playerId) {
-      return this.createMatch(existing.playerId, playerId, { mode, variant, roundCount });
+      const opponent = queue.shift();
+      try {
+        const resolvedRoundCount = opponent.roundCount;
+        return await this.createMatch(opponent.playerId, playerId, {
+          mode,
+          variant,
+          roundCount: resolvedRoundCount,
+        });
+      } catch (error) {
+        queue.unshift(opponent);
+        throw error;
+      }
     }
 
     queue.push({ playerId, roundCount, requestedAt: Date.now() });
     return { status: "queued" };
+  }
+
+  async playBot(playerId, { mode, variant, roundCount = 3 }) {
+    validateMode(mode);
+    validateVariant(variant);
+    if (roundCount < 1) {
+      throw new Error("Round count must be at least 1");
+    }
+
+    const activeMatch = this.findActiveMatchByPlayer(playerId);
+    if (activeMatch) {
+      return { status: "matched", match: clone(activeMatch.match) };
+    }
+
+    await this.ensureBotUser();
+    return this.createMatch(playerId, this.botId, { mode, variant, roundCount });
   }
 
   isPlayerQueued(playerId) {
@@ -46,13 +118,15 @@ export class MatchService {
     );
   }
 
-  createMatch(playerA, playerB, { mode, variant, roundCount }) {
+  async createMatch(playerA, playerB, { mode, variant, roundCount = 3 }) {
+    const playerProfiles = await this.loadMatchPlayers([playerA, playerB]);
     const match = {
       id: randomUUID(),
       mode,
       variant,
       roundCount,
       players: [playerA, playerB],
+      playerProfiles,
       createdAt: new Date().toISOString(),
       state: "awaiting-submissions",
       rounds: [],

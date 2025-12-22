@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: ArchitectB
+Task: Add login flow and bot matchmaking
+Context:
+  - UX needs a proper login flow and should not require manual player IDs for matchmaking or profile updates.
+  - A bot opponent is needed for rapid human testing without a second player online.
+  - Existing code enforces strict coverage; new branches must be fully exercised.
+Position:
+  - Add login navigation/panel and store the authenticated user client-side to drive matchmaking and avatar calls.
+  - Build a bot match path in the service layer that validates inputs, hydrates player profiles (including the bot), and returns matches immediately.
+Recommendations:
+  - Extend `/api/matchmaking` to accept a bot flag, wire UI buttons for "Play vs Bot," and reuse the stored user for all submissions.
+  - Cover bot creation/reuse, invalid round counts, and active-match polling in tests to keep 100% coverage.

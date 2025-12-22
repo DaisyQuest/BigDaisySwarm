@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0008-add-login-flow-and-bot-matchmaking
+Agent: ArchitectA
+Task: Add login flow and bot matchmaking
+Context:
+  - Matchmaking currently depends on user-entered IDs in the UI and lacks a login experience, blocking easy re-entry after refresh.
+  - There's no bot-play path for quick manual validation; matchmaking only pairs humans and requires both to be online.
+  - Branch coverage is enforced at 100%, so every new path needs tests.
+Position:
+  - Add a login panel and carry authenticated state through the UI so matchmaking and avatar updates can auto-use the logged-in player.
+  - Introduce a bot matchmaking path that hydrates matches immediately while preserving the existing queue semantics for human vs. human.
+Recommendations:
+  - Centralize current-user state in the front end, removing userId inputs and enabling polling of matchmaking with the stored user.
+  - Add a `playBot` flow in the match service plus tests for round-count validation, bot hydration, and reuse of active matches.
