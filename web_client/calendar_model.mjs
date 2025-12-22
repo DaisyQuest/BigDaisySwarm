@@ -2,6 +2,21 @@ const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
 
 const createEmptySnapshot = () => ({ calendars: [], events: [] });
 
+const normalizeTags = (tags) => {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => `${tag}`.trim()).filter(Boolean);
+  }
+  return [`${tags}`.trim()].filter(Boolean);
+};
+
+const normalizeObject = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value;
+};
+
 const normalizeCalendar = (calendar) => ({
   id: calendar.id,
   name: (calendar.name ?? "").trim(),
@@ -11,18 +26,26 @@ const normalizeCalendar = (calendar) => ({
   description: (calendar.description ?? "").trim(),
 });
 
-const normalizeEvent = (event) => ({
-  id: event.id,
-  calendarId: event.calendarId,
-  title: (event.title ?? "").trim(),
-  start: event.start,
-  end: event.end,
-  timezone: event.timezone ?? "UTC",
-  description: (event.description ?? "").trim(),
-  location: (event.location ?? "").trim(),
-  color: event.color ?? "#2563eb",
-  tags: Array.isArray(event.tags) ? event.tags : [],
-});
+const normalizeEvent = (event) => {
+  const calendarId = event.calendarId ?? event.calendar_id ?? event.calendar;
+  return {
+    id: event.id,
+    calendarId,
+    title: (event.title ?? "").trim(),
+    start: event.start,
+    end: event.end,
+    timezone: event.timezone ?? "UTC",
+    description: (event.description ?? "").trim(),
+    location: (event.location ?? "").trim(),
+    color: event.color ?? "#2563eb",
+    tags: normalizeTags(event.tags),
+    recurrence: event.recurrence ?? null,
+    metadata: normalizeObject(event.metadata),
+    participants: normalizeObject(event.participants),
+    overrides: normalizeObject(event.overrides),
+    canceled: Boolean(event.canceled),
+  };
+};
 
 const normalizeSnapshot = (snapshot) => {
   if (!snapshot) {

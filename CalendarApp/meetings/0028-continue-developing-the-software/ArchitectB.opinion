@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: ArchitectB
+Task: continue developing the software
+Context:
+The frontend calendar model keeps camelCase fields, while the backend serialization requires snake_case `calendar_id`. The remote adapter currently forwards snapshots verbatim, creating schema drift and hydration errors on the server.
+Position:
+- Treat the remote adapter as the translation layer; do not loosen backend validation or mutate storage semantics.
+- Normalize on load/save so server-facing payloads stay compliant without forcing the UI to abandon its camelCase model.
+- Enforce minimal validation (calendar ID, required timestamps) before issuing PUT requests to avoid propagating malformed state.
+Recommendations:
+- Introduce helper functions to map server payloads to client shape and back, with strict checks for required fields.
+- Keep calendar normalization tolerant of snake_case and retain server-supported properties (metadata, participants, overrides) to prevent accidental data loss during sync.
+- Extend Node-based web client tests to validate translation behavior and the error path when calendar IDs are absent.

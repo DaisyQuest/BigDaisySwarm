@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: ArchitectA
+Task: continue developing the software
+Context:
+Remote sync to the calendar server is rejecting state snapshots because client-side events arrive without the required `calendar_id` field. The web client stores events in camelCase and was persisting them directly, so the example server’s storage validation fails during hydration.
+Position:
+- Normalize schema differences at the sync boundary instead of weakening server validation. The remote adapter should translate between the server’s snake_case contract and the client’s camelCase model.
+- Preserve extended event data (metadata, participants, recurrence) so round-trips do not silently drop fields that the server already supports.
+- Keep calendar model normalization resilient to snake_case snapshots to avoid corrupting local storage when remote data is cached.
+Recommendations:
+- Add explicit conversion helpers in the remote adapter that validate incoming server payloads and emit snake_case when saving back to `/state`.
+- Broaden the calendar model’s normalization to accept `calendar_id` and retain metadata/participants/overrides when hydrating snapshots.
+- Expand the web client tests to cover the translation in both directions and assert failures when calendar IDs are missing, keeping sync regressions visible.

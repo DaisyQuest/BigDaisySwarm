@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: Critic
+Task: continue developing the software
+Context:
+Remote sync is brittle: the UI sends camelCase events to a snake_case API, causing hydration errors. The model also dropped server-aware fields, risking data loss even when sync succeeds.
+Position:
+- Fixing the adapter is necessary, but we should be wary of silent data truncation (e.g., tags/colors not represented on the server).
+- Validation must be strict enough to fail fast when required fields are missing, yet not so strict that harmless extras break sync.
+- Future-proofing may require a richer shared schema; for now, preserve what the server already supports (metadata, participants, recurrence, overrides).
+Recommendations:
+- Ensure the new translation helpers do not mutate snapshots in-place and return clear errors for missing IDs or timestamps.
+- Consider documenting the field-mapping contract so future UI changes don’t regress sync; for now, codify it via tests.
+- Track remaining gaps (UI-only fields not stored server-side) in follow-up work to avoid surprise data loss expectations.
