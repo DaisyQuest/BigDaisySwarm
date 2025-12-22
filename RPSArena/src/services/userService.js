@@ -10,8 +10,9 @@ import {
 } from "../utils/validation.js";
 
 export class UserService {
-  constructor(store) {
+  constructor(store, logger = console) {
     this.store = store;
+    this.logger = logger;
   }
 
   sanitize(user) {
@@ -52,6 +53,7 @@ export class UserService {
     });
 
     const saved = await this.store.createUser(user);
+    this.logger.info?.(`Registered user ${user.id}`);
     return this.sanitize(saved);
   }
 
@@ -79,6 +81,7 @@ export class UserService {
     if (!updated) {
       throw new Error("User not found");
     }
+    this.logger.info?.(`Updated avatar for ${userId}`);
     return this.sanitize(updated);
   }
 
@@ -106,6 +109,7 @@ export class UserService {
     if (!updated) {
       throw new Error("User not found");
     }
+    this.logger.debug?.(`Rating change for ${userId} on ${variant}: ${delta}`);
     return this.sanitize(updated);
   }
 

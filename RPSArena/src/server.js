@@ -7,6 +7,7 @@ import { MODES, VARIANTS } from "./constants.js";
 import { buildServices, createJsonResponder } from "./services/bootstrap.js";
 import { resolveMongoClientOptions, resolvePort } from "./utils/env.js";
 import { requireFields } from "./utils/validation.js";
+import { createLogger, formatLog } from "./utils/logging.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,7 +62,8 @@ function parseBoolean(value) {
   return value === "true" || value === true;
 }
 
-const servicesPromise = buildServices({ mongoOptions: resolveMongoClientOptions() });
+const logger = createLogger(console);
+const servicesPromise = buildServices({ mongoOptions: resolveMongoClientOptions(), logger });
 const port = resolvePort();
 
 const server = http.createServer(async (req, res) => {
@@ -72,12 +74,14 @@ const server = http.createServer(async (req, res) => {
     try {
       if (url.pathname === "/api/register" && req.method === "POST") {
         const payload = await parseBody(req);
+        logger.info(formatLog("Register request", { email: payload.email }));
         const user = await userService.registerUser(payload);
         return json(201, user);
       }
 
       if (url.pathname === "/api/login" && req.method === "POST") {
         const payload = await parseBody(req);
+        logger.info(formatLog("Login attempt", { email: payload.email }));
         const user = await userService.authenticate(payload.email, payload.password);
         return json(200, user);
       }
@@ -85,6 +89,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/api/avatar" && req.method === "PATCH") {
         const payload = await parseBody(req);
         requireFields(payload, ["userId", "avatarColor"]);
+        logger.info(formatLog("Avatar update", { userId: payload.userId }));
         const user = await userService.updateAvatar(payload.userId, payload.avatarColor);
         return json(200, user);
       }
@@ -93,6 +98,7 @@ const server = http.createServer(async (req, res) => {
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
         const offset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
         const variant = url.searchParams.get("variant") || VARIANTS.RANKED;
+        logger.debug(formatLog("Leaderboard request", { limit, offset, variant }));
         const board = await userService.leaderboard(limit, offset, variant);
         return json(200, board);
       }
@@ -101,6 +107,7 @@ const server = http.createServer(async (req, res) => {
         const page = Number.parseInt(url.searchParams.get("page") || "1", 10);
         const pageSize = Number.parseInt(url.searchParams.get("pageSize") || "25", 10);
         const variant = url.searchParams.get("variant") || VARIANTS.RANKED;
+        logger.debug(formatLog("Highscores request", { page, pageSize, variant }));
         const scores = await userService.highScores(page, pageSize, variant);
         return json(200, scores);
       }
@@ -108,6 +115,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/api/history" && req.method === "GET") {
         const playerId = url.searchParams.get("playerId") || undefined;
         const rankedOnly = parseBoolean(url.searchParams.get("rankedOnly"));
+        logger.debug(formatLog("History request", { playerId, rankedOnly }));
         const history = await matchService.history(playerId, rankedOnly);
         return json(200, history);
       }
@@ -116,27 +124,32 @@ const server = http.createServer(async (req, res) => {
         const payload = await parseBody(req);
         requireFields(payload, ["userId", "mode", "variant"]);
         const options = { mode: payload.mode, variant: payload.variant, roundCount: payload.roundCount || 3 };
+        logger.info(formatLog("Matchmaking request", { ...options, userId: payload.userId, playBot: !!payload.playBot }));
         const response = payload.playBot
           ? await matchService.playBot(payload.userId, options)
           : await matchService.enqueue(payload.userId, options);
+        logger.info(formatLog("Matchmaking response", { status: response.status, matchId: response.match?.id }));
         return json(200, response);
       }
 
       if (url.pathname === "/api/match/submit" && req.method === "POST") {
         const payload = await parseBody(req);
         requireFields(payload, ["matchId", "userId"]);
+        logger.info(formatLog("Submit moves", { matchId: payload.matchId, userId: payload.userId }));
         const outcome = await matchService.submitMoves(payload.matchId, payload.userId, payload);
         return json(200, outcome);
       }
 
       if (url.pathname === "/api/news" && req.method === "GET") {
         const { store } = await servicesPromise;
+        logger.debug("News request");
         const news = await store.listNews();
         return json(200, news);
       }
 
       return notFound(res);
     } catch (error) {
+      logger.error(formatLog("API error", { path: url.pathname, error: error.message }));
       return json(400, { error: error.message });
     }
   }

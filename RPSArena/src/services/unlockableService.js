@@ -7,8 +7,9 @@ const WIN_REWARDS = [
 const FLAWLESS_REWARD = { rock: ["crystal"], paper: ["satin"], scissors: ["plasma"] };
 
 export class UnlockableService {
-  constructor(store) {
+  constructor(store, logger = console) {
     this.store = store;
+    this.logger = logger;
   }
 
   async recordResult(userId, { didWin, flawless }) {
@@ -40,6 +41,9 @@ export class UnlockableService {
 
     if (Object.keys(unlocks).length) {
       await this.store.addUnlockables(userId, unlocks);
+      this.logger.info?.(`Unlocks earned for ${userId}: ${JSON.stringify(unlocks)}`);
+    } else {
+      this.logger.debug?.(`No unlocks for ${userId} (win=${didWin}, flawless=${flawless})`);
     }
 
     return unlocks;
