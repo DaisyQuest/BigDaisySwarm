@@ -194,12 +194,12 @@ jobs:
             az webapp config set \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --health-check-path "/healthz"
+
 
             az webapp update \
               --name "$WEB_CLIENT_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set healthCheckPath="/healthz"
+
 
 
       - name: Configure example server container + registry credentials
@@ -228,9 +228,9 @@ jobs:
             az webapp config set \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --health-check-path "/readyz"
+
 
             az webapp update \
               --name "$EXAMPLE_SERVER_APP_NAME" \
               --resource-group "$AZURE_RESOURCE_GROUP" \
-              --set healthCheckPath="/readyz"
+
