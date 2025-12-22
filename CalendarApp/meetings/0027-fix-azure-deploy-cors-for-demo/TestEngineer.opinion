@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0027-fix-azure-deploy-cors-for-demo
+Agent: TestEngineer
+Task: fix azure deploy cors for demo
+Context:
+The web client’s remote adapter relies on Authorization headers and PUT /state; the Azure demo failed because CORS blocked both.
+Position:
+- Regression tests need to assert the new CORS contract (Authorization header + PUT).
+- We should exercise PUT /state happy path plus malformed JSON and payload validation errors.
+Recommendations:
+- Add pytest coverage for OPTIONS (methods/headers), successful PUT /state with Authorization, and error responses for invalid JSON and bad payloads.
+- Create serialization-level tests for the hydrate_storage helper to ensure state replacement and validation remain intact.

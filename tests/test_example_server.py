@@ -131,6 +131,8 @@ def test_cors_and_options_requests():
         status, body, headers = _fetch(f"{server.base_url}/dsl", method="OPTIONS")
         assert status == 204
         assert headers.get("Access-Control-Allow-Origin") == "*"
+        assert headers.get("Access-Control-Allow-Headers") == "Content-Type, Authorization"
+        assert "PUT" in headers.get("Access-Control-Allow-Methods")
         assert body == b""
 
         status, _, headers = _fetch_json(
@@ -149,5 +151,67 @@ def test_cors_can_be_disabled():
         status, _, headers = _fetch_json(f"{server.base_url}/healthz")
         assert status == 200
         assert headers.get("Access-Control-Allow-Origin") is None
+    finally:
+        server.shutdown()
+
+
+def test_state_put_replaces_storage_and_allows_authorization_header():
+    server = ExampleServer()
+    server.serve_in_thread()
+    try:
+        payload = {
+            "calendars": [{"id": "demo", "name": "Demo", "owners": ["demo@example.com"]}],
+            "events": [
+                {
+                    "id": "evt-123",
+                    "calendar_id": "demo",
+                    "title": "Showcase",
+                    "start": "2025-06-01T10:00:00+00:00",
+                    "end": "2025-06-01T11:00:00+00:00",
+                    "timezone": "UTC",
+                }
+            ],
+        }
+        status, body, headers = _fetch_json(
+            f"{server.base_url}/state",
+            method="PUT",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer demo-token"},
+        )
+        assert status == 200
+        assert headers.get("Access-Control-Allow-Headers") == "Content-Type, Authorization"
+        assert headers.get("Access-Control-Allow-Origin") == "*"
+        assert body["state"]["calendars"][0]["id"] == "demo"
+
+        state_status, state_payload, _ = _fetch_json(f"{server.base_url}/state")
+        assert state_status == 200
+        assert {calendar["id"] for calendar in state_payload["calendars"]} == {"demo"}
+        assert {event["id"] for event in state_payload["events"]} == {"evt-123"}
+    finally:
+        server.shutdown()
+
+
+def test_state_put_validates_payload_and_reports_errors():
+    server = ExampleServer()
+    server.serve_in_thread()
+    try:
+        status, payload, _ = _fetch_json(
+            f"{server.base_url}/state",
+            method="PUT",
+            data=b"{invalid",
+            headers={"Content-Type": "application/json", "Authorization": "Bearer demo-token"},
+        )
+        assert status == 400
+        assert "Invalid JSON payload" in payload["error"]
+
+        bad_payload = {"calendars": {}, "events": []}
+        status, payload, _ = _fetch_json(
+            f"{server.base_url}/state",
+            method="PUT",
+            data=json.dumps(bad_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer demo-token"},
+        )
+        assert status == 400
+        assert "Stored calendars must be a list" in payload["error"]
     finally:
         server.shutdown()
