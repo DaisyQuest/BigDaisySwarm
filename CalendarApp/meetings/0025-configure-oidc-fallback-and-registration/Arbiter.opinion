@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: Arbiter
+Task: configure oidc fallback and registration
+Context:
+- OIDC gaps prevented sign-in; basic auth fallback and registration UI were added.
+Position:
+- Accept fallback for local use only; remote sync remains gated on complete OIDC.
+Recommendations:
+- Emphasize in docs that production deployments must configure OIDC instead of relying on local basic auth.

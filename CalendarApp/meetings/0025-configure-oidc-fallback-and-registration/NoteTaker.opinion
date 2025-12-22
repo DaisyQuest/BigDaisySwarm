@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: NoteTaker
+Task: configure oidc fallback and registration
+Context:
+- Web client needed a path when OIDC isn’t configured.
+- Basic auth fallback with registration/login UI was added; remote sync stays disabled without OIDC.
+Position:
+- Support local-only use when OIDC is missing, but keep messaging clear about offline mode.
+Recommendations:
+- Document fallback behavior in deployment guides.
+- Keep tests covering both OIDC and fallback flows.

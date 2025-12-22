@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0025-configure-oidc-fallback-and-registration
+Agent: ArchitectA
+Task: configure oidc fallback and registration
+Context:
+- Remote sync relies on OIDC; missing config was blocking usability.
+- Local basic auth fallback allows single-page use while keeping remote sync disabled.
+Position:
+- Accept a local-only path when OIDC is absent, but make it clear sync is offline.
+Recommendations:
+- Keep OIDC enforcement for remote sync strict.
+- Highlight the fallback in deployment notes so operators know to configure OIDC in production.
