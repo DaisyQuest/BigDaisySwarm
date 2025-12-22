@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: Developer
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Web client was local-only with seed data; docker deployments needed real API sync plus OIDC/JWKS validation.
+- No runtime bridge existed for injecting issuer/client settings into the static assets.
+Position:
+- Implemented `auth.mjs` (PKCE helpers, JWT verification via Web Crypto) and `remote_adapter.mjs` (bearer fetch with JWKS enforcement).
+- Added `runtime-config.js` + entrypoint to hydrate config from env vars, and gated startup on `apiBaseUrl`/OIDC presence instead of seeding.
+Recommendations:
+- Follow up with a live integration against the deployed API to confirm `/state` PUT/GET works with the bearer token and scopes.
+- Extend UI status to surface JWKS fetch errors separately and consider retry/backoff so transient issuer issues don't block users permanently.

@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0022-add-full-test-coverage-for-web-client-auth-and-runtime-config
+Agent: ArchitectA
+Task: add full test coverage for web client auth and runtime config
+Context:
+- Web client auth/remote sync landed; we need comprehensive tests to keep the public demo from regressing.
+Position:
+- Endorse broad coverage: JWT validation across expiry/nbf/issuer/audience/signature/alg errors, PKCE flows, redirect handling, and remote adapter resilience with real signed tokens.
+- Keep HTTPS/JWKS enforcement strict; mocks should be realistic to avoid hollow coverage.
+Recommendations:
+- Add container smoke to confirm runtime-config.js generation from env at startup.
+- Stage an end-to-end auth + `/state` validation against the real API before labeling the demo production-ready.

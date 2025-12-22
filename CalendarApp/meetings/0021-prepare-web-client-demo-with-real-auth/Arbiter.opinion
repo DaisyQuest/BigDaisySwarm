@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: Arbiter
+Task: prepare web client demo with real auth
+Context:
+- Public demo must authenticate against the real API with JWKS-backed crypto and health-checked deployments.
+Position:
+- Accept enforcing HTTPS + JWKS, blocking startup on missing API/OIDC config, and generating runtime-config.js from env for container runs.
+- Azure workflow now validates required secrets and sets health checks to keep the demo ready.
+Recommendations:
+- Follow up with staging smoke for auth redirect + `/state` to align with the live backend contract.
+- Add telemetry for auth/JWKS errors so operations can distinguish issuer outages from config drift.

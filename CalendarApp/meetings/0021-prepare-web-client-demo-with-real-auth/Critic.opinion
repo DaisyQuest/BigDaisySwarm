@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: Critic
+Task: prepare web client demo with real auth
+Context:
+- Previous demo behavior relied on seed data and lacked enforced OIDC/JWKS; container runtime config was implicit.
+Position:
+- Good to require HTTPS + JWKS and fail fast without API/OIDC config, but beware: assuming a `/state` PUT/GET contract could still break against the real API.
+- Entry point defaults (`SYNC_ENABLED=true`) mean misconfigured envs will hard-fail; acceptable for now, but operators need clarity.
+Recommendations:
+- Coordinate with backend to validate the remote contract; if different, implement a shim instead of relaxing validation.
+- Add logging/telemetry around auth/JWKS fetch failures so public demos don’t silently die when issuers rotate keys or env vars drift.

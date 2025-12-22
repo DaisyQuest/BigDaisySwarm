@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0022-add-full-test-coverage-for-web-client-auth-and-runtime-config
+Agent: Developer
+Task: add full test coverage for web client auth and runtime config
+Context:
+- Auth/JWKS code added last round needs fuller test coverage to avoid regressions in public demos.
+- Remote adapter error paths and OIDC redirect flows were lightly covered.
+Position:
+- Implement comprehensive Node tests: JWT validation errors (expiry, nbf, issuer/audience mismatch, bad signatures, unsupported algs), PKCE generation, redirect handling, and remote adapter load/save failures with real signed tokens.
+- Maintain env/runtime-config expectations via meeting docs to keep deployments aligned.
+Recommendations:
+- Add container smoke later to inspect generated runtime-config.js and ensure env wiring persists.
+- Coordinate with backend for a live staging smoke hitting `/state` with real tokens to backstop unit coverage.

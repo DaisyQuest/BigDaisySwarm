@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0020-ensure-docker-deployment-uses-real-auth-for-web-client
+Agent: ArchitectA
+Task: ensure docker deployment uses real auth for web client
+Context:
+- Web client was defaulting to seed data even when deployed, with no enforcement of real auth or crypto guarantees.
+- Containerized deployments lacked a runtime-config hook to inject issuer/client metadata and JWKS details.
+Position:
+- Enforce OIDC inputs (issuer, audience, endpoints, JWKS) as first-class requirements when sync is enabled; fail fast instead of seeding.
+- Keep HTTPS-only everywhere except localhost to match the security spec, and require JWKS-backed verification before any remote state call.
+Recommendations:
+- Validate the `/state` PUT/GET contract against the live API; if the production surface differs, add a minimal adapter layer instead of loosening auth.
+- Add a deployment smoke that exercises JWKS fetch + JWT verification to catch issuer or key-rotation drift before users see seed data again.
