@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: Developer
+Task: continue developing the software
+Context:
+Remote sync fails with “Stored event is missing required field 'calendar_id'” because the web client sends camelCase events directly to `/state`. The calendar model also trimmed out server-side fields, so round-trips could lose metadata/participants.
+Position:
+- Implement schema translation inside `remote_adapter.mjs` for both load and save, validating required fields before hitting the server.
+- Teach `calendar_model.mjs` to accept snake_case snapshots and preserve server-supported fields (metadata, participants, overrides, recurrence, canceled) alongside UI properties.
+- Back the changes with Node-based tests that exercise successful translation and the error path for missing calendar IDs.
+Recommendations:
+- Add normalization helpers to the remote adapter that convert server payloads to camelCase and emit snake_case with defaults (UTC timezone) for outbound saves.
+- Expand event normalization in the calendar model to handle `calendar_id`, normalize tags/objects, and keep additional fields intact.
+- Update `tests/test_web_client.py` with coverage for snake_case snapshots, bidirectional translation, and the failure case when calendar IDs are absent, then rerun `PYTHONPATH=src pytest --maxfail=1`.

@@ -325,6 +325,29 @@ console.log(JSON.stringify({{
     assert result["persistedCount"] == 2
 
 
+def test_calendar_model_handles_snake_case_remote_snapshot():
+    script = f"""
+import {{ CalendarModel, MemoryStorage }} from 'file://{CALENDAR_MODEL.as_posix()}';
+const snapshot = {{
+  calendars: [{{ id: 'remote-cal', name: 'Remote', owners: ['ops@example.com'], description: ' Seed ' }}],
+  events: [{{ id: 'evt-remote', calendar_id: 'remote-cal', title: 'Synced Event', start: '2025-08-01T12:00:00Z', end: '2025-08-01T13:00:00Z', timezone: 'UTC', metadata: {{ source: 'remote' }}, participants: {{ host: {{ id: 'host', email: 'host@example.com' }} }} }}],
+}};
+const model = new CalendarModel({{ storage: new MemoryStorage(snapshot) }});
+const exported = model.exportSnapshot();
+console.log(JSON.stringify({{
+  calendarId: exported.events[0].calendarId,
+  metadataSource: exported.events[0].metadata.source,
+  participantEmail: exported.events[0].participants.host.email,
+  description: exported.calendars[0].description,
+}}));
+"""
+    result = run_node_json(script)
+    assert result["calendarId"] == "remote-cal"
+    assert result["metadataSource"] == "remote"
+    assert result["participantEmail"] == "host@example.com"
+    assert result["description"] == "Seed"
+
+
 def test_configurable_storage_supports_remote_adapter_and_fallback():
     script = f"""
 import {{ mergeConfig, createStorageFromConfig, resolveConfig }} from 'file://{WEB_ROOT.joinpath("config.mjs").as_posix()}';
@@ -634,6 +657,47 @@ console.log(JSON.stringify({{ headers }}));
     result = run_node_json(script)
     assert all(header.startswith("Basic ") for header in result["headers"])
     assert len(result["headers"]) == 2
+
+
+def test_remote_adapter_transforms_state_for_client_and_server():
+    script = f"""
+import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
+let saved = [];
+const adapter = createRemoteAdapter({{
+  apiBaseUrl: 'https://api.example.com',
+  authScheme: 'Basic',
+  validateAccessToken: false,
+  tokenProvider: () => 'Basic dXNlcjp0b2tlbg==',
+  fetchImpl: async (url, options = {{}}) => {{
+    if (url.endsWith('/state') && (options.method || 'GET') === 'GET') {{
+      return new Response(JSON.stringify({{
+        calendars: [{{ id: 'cal-remote', name: 'Remote', owners: ['ops@example.com'], description: ' Remote ' }}],
+        events: [{{ id: 'evt-remote', calendar_id: 'cal-remote', title: 'Synced', start: '2025-09-01T10:00:00Z', end: '2025-09-01T11:00:00Z', timezone: 'UTC', metadata: {{ source: 'cloud' }} }}],
+      }}), {{ status: 200, headers: {{ 'Content-Type': 'application/json' }} }});
+    }}
+    if (url.endsWith('/state') && options.method === 'PUT') {{
+      saved.push(JSON.parse(options.body));
+      return new Response('', {{ status: 200 }});
+    }}
+    throw new Error('unexpected url ' + url);
+  }},
+}});
+const snapshot = await adapter.load();
+await adapter.save(snapshot);
+console.log(JSON.stringify({{
+  calendarId: snapshot.events[0].calendarId,
+  sentCalendarId: saved[0].events[0].calendar_id,
+  sentTimezone: saved[0].events[0].timezone,
+  metadataSource: saved[0].events[0].metadata.source,
+  ownersPreserved: Array.isArray(saved[0].calendars[0].owners),
+}}));
+"""
+    result = run_node_json(script)
+    assert result["calendarId"] == "cal-remote"
+    assert result["sentCalendarId"] == "cal-remote"
+    assert result["sentTimezone"] == "UTC"
+    assert result["metadataSource"] == "cloud"
+    assert result["ownersPreserved"] is True
 
 
 def test_remote_adapter_requires_jwks():
@@ -1003,4 +1067,40 @@ console.log(JSON.stringify({{
     result = run_node_json(script)
     assert "Remote load failed" in result["loadError"]
     assert "Remote save failed" in result["saveError"]
+    assert result["warned"] is True
+
+
+def test_remote_adapter_blocks_missing_calendar_ids_on_save():
+    script = f"""
+import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
+let warnings = [];
+const adapter = createRemoteAdapter({{
+  apiBaseUrl: 'https://api.example.com',
+  authScheme: 'Basic',
+  validateAccessToken: false,
+  tokenProvider: () => 'token',
+  onWarn: (msg) => warnings.push(msg),
+  fetchImpl: async (url, options = {{}}) => {{
+    if (url.endsWith('/state') && options.method === 'PUT') {{
+      return new Response('', {{ status: 200 }});
+    }}
+    throw new Error('unexpected ' + url);
+  }},
+}});
+let error = '';
+try {{
+  await adapter.save({{
+    calendars: [],
+    events: [{{ id: 'evt-missing', title: 'Broken', start: '2025-09-02T10:00:00Z', end: '2025-09-02T11:00:00Z', timezone: 'UTC' }}],
+  }});
+}} catch (err) {{
+  error = err.message;
+}}
+console.log(JSON.stringify({{
+  error,
+  warned: warnings.some((msg) => msg.includes('calendarId')),
+}}));
+"""
+    result = run_node_json(script)
+    assert "calendarId" in result["error"]
     assert result["warned"] is True

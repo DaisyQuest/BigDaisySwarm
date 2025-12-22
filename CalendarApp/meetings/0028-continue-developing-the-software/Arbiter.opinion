@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: Arbiter
+Task: continue developing the software
+Context:
+The team needs sync to stop failing on missing `calendar_id` and avoid dropping server-side fields during round-trips.
+Position:
+- Proceed with a translation layer in the remote adapter plus broader snapshot normalization in the calendar model.
+- Protect the change with Node tests for both success and failure paths.
+Recommendations:
+- Approve implementing snake_case↔camelCase conversion helpers with validation in `remote_adapter.mjs`.
+- Approve expanding `calendar_model.mjs` normalization to retain metadata/participants/overrides and accept `calendar_id`.
+- Require updated tests and a full pytest run before merging.

@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: TestEngineer
+Task: continue developing the software
+Context:
+Sync failures stem from schema mismatch: remote saves omit `calendar_id`, and the model discarded server-side fields. We need tests that prove translation correctness and guard against malformed snapshots.
+Position:
+- Cover the calendar model’s ability to hydrate snake_case snapshots while retaining metadata/participants.
+- Verify the remote adapter converts server responses to client shape and back, including validation failures when `calendarId` is missing.
+- Keep the pytest and Node-based suites green to avoid regressions in the browser sync path.
+Recommendations:
+- Add a Node test that seeds a snapshot with `calendar_id` plus metadata/participants and confirms the model exports them intact.
+- Add remote adapter tests that (a) assert inbound snake_case becomes camelCase and outbound payloads include `calendar_id`, and (b) assert a save without `calendarId` raises and emits a warning.
+- Run `PYTHONPATH=src pytest --maxfail=1` after changes to confirm full coverage across Python and web client assets.

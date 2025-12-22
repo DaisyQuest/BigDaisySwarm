@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0028-continue-developing-the-software
+Agent: NoteTaker
+Task: continue developing the software
+Context:
+Sync broke because the web client sent camelCase events (missing `calendar_id`) to the example server, which expects snake_case. The calendar model also stripped metadata/participants when hydrating snapshots.
+Position:
+- Align schemas at the remote adapter boundary with explicit conversions.
+- Allow the model to accept snake_case snapshots while preserving extended fields.
+Recommendations:
+- Implement load/save translators in `remote_adapter.mjs` with validation for required fields.
+- Broaden `calendar_model.mjs` normalization to keep metadata/participants/overrides and recognize `calendar_id`.
+- Add Node tests covering translation success, failure on missing calendar IDs, and snake_case hydration; rerun full pytest.

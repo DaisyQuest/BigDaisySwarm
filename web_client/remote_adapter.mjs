@@ -6,6 +6,99 @@ function assertSecureUrl(url) {
   authUtils.assertHttps(url);
 }
 
+const asObject = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value;
+};
+
+function normalizeCalendarFromServer(calendar) {
+  return {
+    id: `${calendar.id ?? ""}`,
+    name: `${calendar.name ?? ""}`.trim(),
+    owners: Array.isArray(calendar.owners) ? calendar.owners : [],
+    description: `${calendar.description ?? ""}`.trim(),
+  };
+}
+
+function normalizeEventFromServer(event) {
+  const calendarId = event.calendar_id ?? event.calendarId ?? event.calendar;
+  if (!calendarId) {
+    throw new Error("Remote event missing required field 'calendar_id'");
+  }
+  for (const field of ["id", "title", "start", "end"]) {
+    if (event[field] === undefined || event[field] === null || event[field] === "") {
+      throw new Error(`Remote event missing required field '${field}'`);
+    }
+  }
+  return {
+    id: `${event.id}`,
+    calendarId: `${calendarId}`,
+    title: `${event.title}`,
+    start: event.start,
+    end: event.end,
+    timezone: event.timezone ?? "UTC",
+    recurrence: event.recurrence ?? null,
+    participants: asObject(event.participants),
+    metadata: asObject(event.metadata),
+    overrides: asObject(event.overrides),
+    canceled: Boolean(event.canceled),
+  };
+}
+
+function normalizeSnapshotFromServer(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Remote state must be an object with calendars and events");
+  }
+  if (!Array.isArray(payload.calendars) || !Array.isArray(payload.events)) {
+    throw new Error("Remote state missing calendars/events");
+  }
+  const calendars = payload.calendars.map(normalizeCalendarFromServer);
+  const events = payload.events.map(normalizeEventFromServer);
+  return { calendars, events };
+}
+
+function normalizeEventForServer(event) {
+  const calendarId = event.calendarId ?? event.calendar_id;
+  if (!calendarId) {
+    throw new Error("Event missing calendarId for remote sync");
+  }
+  const required = ["id", "title", "start", "end"];
+  const missing = required.filter((field) => !event[field]);
+  if (missing.length) {
+    throw new Error(`Event ${event.id ?? "<unknown>"} missing required fields: ${missing.join(", ")}`);
+  }
+  return {
+    id: `${event.id}`,
+    calendar_id: `${calendarId}`,
+    title: `${event.title}`,
+    start: event.start,
+    end: event.end,
+    timezone: event.timezone || "UTC",
+    recurrence: event.recurrence ?? null,
+    participants: asObject(event.participants),
+    metadata: asObject(event.metadata),
+    overrides: asObject(event.overrides),
+    canceled: Boolean(event.canceled),
+  };
+}
+
+function normalizeSnapshotForServer(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new Error("Snapshot must be an object with calendars and events");
+  }
+  if (!Array.isArray(snapshot.calendars) || !Array.isArray(snapshot.events)) {
+    throw new Error("Snapshot must include calendar and event arrays");
+  }
+  const calendars = snapshot.calendars;
+  const events = snapshot.events;
+  return {
+    calendars,
+    events: events.map(normalizeEventForServer),
+  };
+}
+
 export function createRemoteAdapter({
   apiBaseUrl,
   tokenProvider,
@@ -81,18 +174,23 @@ export function createRemoteAdapter({
       throw new Error(`Remote load failed with status ${response.status}`);
     }
     const payload = await response.json();
-    if (!Array.isArray(payload.calendars) || !Array.isArray(payload.events)) {
-      throw new Error("Remote state missing calendars/events");
-    }
-    return payload;
+    return normalizeSnapshotFromServer(payload);
   }
 
   async function save(snapshot) {
+    let prepared = null;
+    try {
+      prepared = normalizeSnapshotForServer(snapshot);
+    } catch (error) {
+      warn(`Failed to persist remote state: ${error.message}`);
+      throw error;
+    }
+
     try {
       const response = await authorizedFetch("/state", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(snapshot),
+        body: JSON.stringify(prepared),
       });
       if (!response.ok) {
         throw new Error(`Remote save failed with status ${response.status}`);
