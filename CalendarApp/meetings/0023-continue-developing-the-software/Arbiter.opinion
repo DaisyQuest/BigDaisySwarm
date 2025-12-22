@@ -1,0 +1,12 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: Arbiter
+Task: continue developing the software
+Context:
+- We need to ship a resilient runtime-config generator and align Azure workflow health probes with tests/docs.
+Position:
+- Proceed with the shell-based normalization approach plus added CI hooks; this balances safety with the nginx base image constraints.
+Recommendations:
+- Approve the plan to escape strings, coerce booleans, rebuild scope arrays defensively, and make entrypoint.sh test-friendly.
+- Approve restoring explicit healthCheckPath settings in azure-containers.yml for both services.

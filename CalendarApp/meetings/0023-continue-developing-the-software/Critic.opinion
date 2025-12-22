@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: Critic
+Task: continue developing the software
+Context:
+- Shell parsing can be fragile; naive normalization could still emit malformed arrays or strip meaningful characters.
+- Azure CLI flags must match App Service expectations; mis-typed healthCheckPath could silently fail without surfacing in CI.
+Position:
+- Guard against double-quoting or empty tokens when rebuilding scope arrays.
+- Keep the default scope set intact even when users provide junk input so the UI stays usable.
+Recommendations:
+- Sanitize scopes by removing brackets/quotes, splitting on commas/whitespace, and rebuilding the array only when tokens remain; otherwise fall back to the default list.
+- Validate that workflow snippets literally contain `healthCheckPath="/healthz"` and `/readyz` to align with documentation and tests.
+- Consider escaping all interpolated strings to avoid breaking JSON when secrets contain quotes.
