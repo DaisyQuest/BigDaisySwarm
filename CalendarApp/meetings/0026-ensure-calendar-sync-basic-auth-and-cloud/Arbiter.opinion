@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: Arbiter
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Deliverable: basic-auth registration + sync to cloud config, visible sync status/button, and resilience when remote services (e.g., Mongo-backed API) are offline.
+- Remote adapter extended for Basic scheme while retaining Bearer validation and secure URL checks.
+Position:
+- The current solution balances safety (token validation when available, scoped storage) with usability (manual sync, offline fallback).
+- It meets the task requirements without introducing new dependencies or breaking OIDC paths.
+Recommendations:
+- Ship this iteration; next improvements should focus on conflict handling and clearer auth prompts if links remain escaped.
+- Keep monitoring remote adapter error messages to ensure users know when cloud persistence is deferred.

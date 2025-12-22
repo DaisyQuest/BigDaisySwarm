@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: ArchitectA
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Calendar web client must register basic-auth users locally, sync to configured cloud endpoint, and keep working when the remote store (e.g., Mongo) is unavailable.
+- UX should surface sync state, expose a manual sync trigger, and continue to seed local demo data when remote services are down.
+Position:
+- A local-first model with scoped storage per user plus a pluggable remote adapter (Bearer or Basic) keeps the architecture simple and resilient.
+- Sync status surfaced in the shell helps align expectations when remote connectivity or auth is missing.
+Recommendations:
+- Keep remote adapter auth-agnostic (scheme + optional verification) so server-side auth can evolve without client rewrites.
+- Preserve clear separation between storage (local snapshot) and sync orchestration to keep failure modes contained.
+- Continue prioritizing explicit status messaging over silent fallback to help users understand when cloud writes are deferred.

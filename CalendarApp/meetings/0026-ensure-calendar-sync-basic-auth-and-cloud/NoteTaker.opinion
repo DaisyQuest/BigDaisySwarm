@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: NoteTaker
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Goal: allow calendar users to register with Basic auth, keep events in local storage, and sync to the configured cloud endpoint even without OIDC.
+- UI needs a sync button and visible status; remote outages (e.g., missing Mongo) should not block local use.
+Position:
+- Implemented scoped storage per user, manual sync control with status text, and Basic-aware remote adapter support.
+- CalendarModel gained snapshot export/replace to refresh from remote data safely.
+Recommendations:
+- Future: add merge/conflict hints for manual syncs and consider link-friendly status rendering for auth prompts.
+- Continue running full pytest to keep coverage strong as sync flows evolve.

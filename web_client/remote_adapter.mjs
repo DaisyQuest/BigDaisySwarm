@@ -12,6 +12,8 @@ export function createRemoteAdapter({
   jwksUri,
   issuer,
   audience,
+  authScheme = "Bearer",
+  validateAccessToken = true,
   fetchImpl = null,
   now = () => Date.now(),
   onWarn = null,
@@ -22,8 +24,9 @@ export function createRemoteAdapter({
   if (typeof tokenProvider !== "function") {
     throw new Error("tokenProvider is required for remote sync");
   }
-  if (!jwksUri) {
-    throw new Error("jwksUri is required for remote sync");
+  const shouldValidate = validateAccessToken && authScheme !== "Basic";
+  if (shouldValidate && !jwksUri) {
+    throw new Error("jwksUri is required to validate remote sync tokens");
   }
   assertSecureUrl(apiBaseUrl);
   if (jwksUri) {
@@ -33,6 +36,18 @@ export function createRemoteAdapter({
   const fetcher = fetchImpl || fetch;
   let jwksCache = null;
   const warn = onWarn || ((message) => console.warn(message));
+
+  function buildAuthorizationHeader(token) {
+    const raw = `${token ?? ""}`.trim();
+    if (!raw) {
+      throw new Error("Missing access token");
+    }
+    if (/^\w+\s+\S+/.test(raw)) {
+      return raw;
+    }
+    const scheme = authScheme || "Bearer";
+    return `${scheme} ${raw}`.trim();
+  }
 
   async function fetchJwks() {
     if (jwksCache) return jwksCache;
@@ -46,19 +61,16 @@ export function createRemoteAdapter({
 
   async function validatedToken() {
     const token = await tokenProvider();
-    if (!token) {
-      throw new Error("Missing access token");
-    }
-    if (jwksUri) {
+    if (shouldValidate && jwksUri) {
       const jwks = await fetchJwks();
       await verifyJwt(token, jwks, { issuer, audience, now });
     }
-    return token;
+    return buildAuthorizationHeader(token);
   }
 
   async function authorizedFetch(path, init = {}) {
-    const token = await validatedToken();
-    const headers = { ...(init.headers || {}), Authorization: `Bearer ${token}` };
+    const authorization = await validatedToken();
+    const headers = { ...(init.headers || {}), Authorization: authorization };
     const url = `${normalizeUrl(apiBaseUrl)}/${path.replace(/^\/+/, "")}`;
     return fetcher(url, { ...init, headers });
   }

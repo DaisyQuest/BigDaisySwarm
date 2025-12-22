@@ -153,6 +153,15 @@ export class CalendarModel {
     this._persist();
   }
 
+  exportSnapshot() {
+    return clone(this.data);
+  }
+
+  replaceSnapshot(snapshot) {
+    this.data = normalizeSnapshot(snapshot);
+    this._persist();
+  }
+
   listCalendars() {
     return clone(this.data.calendars);
   }

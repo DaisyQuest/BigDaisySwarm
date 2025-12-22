@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: Critic
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Basic-auth sync path was introduced alongside manual sync UI and remote adapter tweaks; OIDC remains the bearer-token path.
+- Remote sync failures now fall back to local operation instead of blocking the app.
+Position:
+- Overwriting local state with remote snapshots could hide conflicting edits; no merge or conflict indicator exists yet.
+- Status messages are rendered via escaped HTML, so login links remain plain text (may limit usability).
+Recommendations:
+- Add guardrails or prompts before replacing local data during manual sync if local changes diverge.
+- Evaluate whether status rendering should allow safe links for auth prompts or a dedicated banner.
+- Monitor Basic auth token handling to ensure secrets are not logged or persisted beyond storage scoping.

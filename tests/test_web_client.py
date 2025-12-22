@@ -294,6 +294,37 @@ console.log(JSON.stringify({{
     assert "rangeStart must be a date or ISO string" in result["error"]
 
 
+def test_calendar_model_replace_snapshot_and_export():
+    script = f"""
+import {{ CalendarModel, MemoryStorage }} from 'file://{CALENDAR_MODEL.as_posix()}';
+const storage = new MemoryStorage();
+const model = new CalendarModel({{ storage }});
+const calendarId = model.createCalendar({{ name: 'Scoped', owners: ['ops@example.com'] }});
+model.addEvent(calendarId, {{
+  title: 'One',
+  start: '2025-07-01T10:00:00Z',
+  end: '2025-07-01T11:00:00Z'
+}});
+const snapshot = model.exportSnapshot();
+const clone = new CalendarModel({{ storage: new MemoryStorage(snapshot) }});
+clone.addEvent(calendarId, {{
+  title: 'Two',
+  start: '2025-07-02T10:00:00Z',
+  end: '2025-07-02T11:00:00Z'
+}});
+model.replaceSnapshot(clone.exportSnapshot());
+console.log(JSON.stringify({{
+  originalCount: snapshot.events.length,
+  updatedCount: model.listEvents(calendarId).length,
+  persistedCount: storage.load().events.length
+}}));
+"""
+    result = run_node_json(script)
+    assert result["originalCount"] == 1
+    assert result["updatedCount"] == 2
+    assert result["persistedCount"] == 2
+
+
 def test_configurable_storage_supports_remote_adapter_and_fallback():
     script = f"""
 import {{ mergeConfig, createStorageFromConfig, resolveConfig }} from 'file://{WEB_ROOT.joinpath("config.mjs").as_posix()}';
@@ -327,6 +358,25 @@ console.log(JSON.stringify({{
     assert any("Remote save failed" in warning for warning in result["warnings"])
     assert any("Remote load failed" in warning for warning in result["warnings"])
     assert result["resolvedSync"] is True
+
+
+def test_sync_status_helpers_cover_local_and_remote_modes():
+    script = f"""
+import {{ describeSyncState, scopedStorageKey }} from 'file://{WEB_ROOT.joinpath("sync_status.mjs").as_posix()}';
+console.log(JSON.stringify({{
+  local: describeSyncState({{ syncEnabled: false, apiBaseUrl: '', remoteActive: false }}),
+  remote: describeSyncState({{ syncEnabled: true, apiBaseUrl: 'https://api.example.com', remoteActive: true }}),
+  degraded: describeSyncState({{ syncEnabled: true, apiBaseUrl: 'https://api.example.com', remoteActive: false, lastError: 'offline' }}),
+  scoped: scopedStorageKey('calendarapp-web-state', 'User@Example.com '),
+  fallback: scopedStorageKey('', '')
+}}));
+"""
+    result = run_node_json(script)
+    assert "Local only" in result["local"]
+    assert "Remote (https://api.example.com)" in result["remote"]
+    assert "offline" in result["degraded"]
+    assert result["scoped"].endswith(":user@example.com")
+    assert result["fallback"] == "calendarapp-web-state"
 
 
 def test_default_config_uses_demo_api_base_url():
@@ -425,9 +475,11 @@ def test_index_shell_contains_regions():
         'data-region="agenda"',
         'data-region="insights"',
         'data-region="status"',
+        'data-region="sync-status"',
         'data-region="auth"',
         'id="calendar-form"',
         'id="event-form"',
+        'id="sync-button"',
         'id="login-form"',
         'id="registration-form"',
     ]:
@@ -555,6 +607,35 @@ console.log(JSON.stringify({{ message }}));
     assert "missing or expired" in result["message"]
 
 
+def test_remote_adapter_supports_basic_auth_without_jwks():
+    script = f"""
+import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
+const headers = [];
+const adapter = createRemoteAdapter({{
+  apiBaseUrl: 'https://api.example.com',
+  authScheme: 'Basic',
+  validateAccessToken: false,
+  tokenProvider: () => 'Basic dXNlcjpzZWNyZXQ=',
+  fetchImpl: async (url, options = {{}}) => {{
+    headers.push(options.headers?.Authorization || '');
+    if (url.endsWith('/state') && (options.method || 'GET') === 'GET') {{
+      return new Response(JSON.stringify({{ calendars: [], events: [] }}), {{ status: 200, headers: {{ 'Content-Type': 'application/json' }} }});
+    }}
+    if (url.endsWith('/state') && options.method === 'PUT') {{
+      return new Response('', {{ status: 200 }});
+    }}
+    throw new Error('unexpected url ' + url);
+  }},
+}});
+await adapter.load();
+await adapter.save({{ calendars: [], events: [] }});
+console.log(JSON.stringify({{ headers }}));
+"""
+    result = run_node_json(script)
+    assert all(header.startswith("Basic ") for header in result["headers"])
+    assert len(result["headers"]) == 2
+
+
 def test_remote_adapter_requires_jwks():
     script = f"""
 import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
@@ -570,7 +651,8 @@ try {{
 console.log(JSON.stringify({{ message }}));
 """
     result = run_node_json(script)
-    assert "jwksUri is required" in result["message"]
+    assert "jwksUri" in result["message"]
+    assert "validate" in result["message"]
 
 
 def test_verify_jwt_errors_and_pkce_round_trip():

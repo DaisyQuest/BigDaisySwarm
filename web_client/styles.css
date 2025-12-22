@@ -55,6 +55,21 @@ body {
   min-width: 240px;
 }
 
+.sync-controls {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sync-controls button {
+  width: auto;
+  justify-self: start;
+}
+
+.sync-status {
+  font-weight: 700;
+}
+
 .layout {
   padding: 1.5rem 3rem 3rem;
   display: grid;

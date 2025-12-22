@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0026-ensure-calendar-sync-basic-auth-and-cloud
+Agent: TestEngineer
+Task: ensure calendar sync basic auth and cloud
+Context:
+- Added Node-side coverage for Basic auth remote adapter, sync status helpers, CalendarModel snapshot replace/export, and HTML sync affordances.
+- Pytest suite already exercises the full repo; new tests confirm headers, labels, and scoped storage behavior.
+Position:
+- Coverage now hits new branches (Basic auth path, sync status helpers, new CalendarModel APIs) to avoid untested regressions.
+- Remote adapter JWKS enforcement is still asserted for Bearer tokens to prevent accidental relaxation.
+Recommendations:
+- Consider a lightweight DOM smoke test for the sync button wiring once a browser harness is available.
+- Keep adding negative-path tests (failed remote saves/loads) to ensure status updates stay informative.
+- Re-run full pytest on future sync or storage changes to guard against cross-project regressions.
