@@ -4,23 +4,48 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RPS Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/public/styles.css" />
   </head>
   <body>
+    <div class="top-bar">
+      <div class="brand">
+        <span class="orb"></span>
+        <span>RPS Arena</span>
+      </div>
+      <div class="nav-actions">
+        <button id="nav-register" class="ghost active">Register</button>
+        <button id="nav-home" class="ghost">Home</button>
+      </div>
+    </div>
     <header class="hero">
       <div>
         <p class="eyebrow">Ultra High Performance</p>
         <h1>RPS Arena</h1>
         <p class="subtitle">Classic & Extreme Rock Paper Scissors. Ranked and Casual. Server authoritative, no shenanigans.</p>
-        <div class="cta">
-          <button id="nav-register" class="primary">Register</button>
-          <button id="nav-home" class="ghost">Home</button>
+        <p class="tagline">Fair play, instant matchmaking, and data-rich post-game breakdowns.</p>
+        <div class="stat-grid">
+          <div class="stat-block">
+            <strong>1 ms</strong>
+            <span>Matchmaking tick</span>
+          </div>
+          <div class="stat-block">
+            <strong>3 Modes</strong>
+            <span>Classic, Extreme, Sandbox</span>
+          </div>
+          <div class="stat-block">
+            <strong>Global</strong>
+            <span>Multi-region ready</span>
+          </div>
         </div>
       </div>
       <div class="hero-card">
         <p class="badge">Azure-ready</p>
         <p class="stat">ELO tuned</p>
         <p class="stat">Unlockable throws</p>
+        <p class="stat">Latency aware pairings</p>
       </div>
     </header>
 

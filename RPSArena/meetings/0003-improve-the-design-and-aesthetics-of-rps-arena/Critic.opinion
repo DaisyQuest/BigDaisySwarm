@@ -1,0 +1,19 @@
+# Opinion
+
+Meeting: 0003-improve-the-design-and-aesthetics-of-rps-arena
+Agent: Critic
+Task: Improve the design and aesthetics of RPS Arena
+Context:
+- UI refresh introduces new styling, typography, and rendering helpers without changing API routes or introducing a build step.
+- Instructions prohibit screenshots/Playwright; quality enforced via c8 100% coverage and repo-wide pytest run.
+- Static serving remains via Node HTTP server; adding Google Fonts introduces an external request.
+
+Position:
+- Design uplift is meaningful (sticky nav, stat grid, refined cards), but ensure accessibility (contrast/focus) remains acceptable with darker gradients.
+- Google Fonts dependency is acceptable for aesthetics, but be mindful of offline scenarios; keep font stack with system fallbacks.
+- Sanitization via render helpers is positive, yet we must ensure server-side still defends against malicious inputs (unchanged this round).
+
+Recommendations:
+- Verify focus states remain visible on ghost buttons and inputs after new border/glow styles; adjust if user reports issues.
+- Consider adding a local font fallback or preconnect hints already included to mitigate font loading delays.
+- Keep an eye on payload size of added CSS; if styles grow further, consider structuring into sections to maintain readability.
