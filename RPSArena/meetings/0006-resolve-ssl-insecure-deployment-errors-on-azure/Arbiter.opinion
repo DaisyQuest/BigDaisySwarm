@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: Arbiter
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - Deployment shows SSL/insecure errors; Azure likely expects WEBSITES_PORT and TLS to Mongo.
+  - Team proposed env-driven fixes with full test coverage and updated docs.
+Position:
+  - Adopt the env helper approach: bind to PORT/WEBSITES_PORT, surface Mongo TLS options, and keep defaults strict while allowing explicit overrides.
+Recommendations:
+  - Merge the env utility, bootstrap/server wiring, and doc updates as planned.
+  - Ship with the new tests and verified npm/pytest runs so operators can redeploy with the documented env variables. 

@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: NoteTaker
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - User still sees SSL/insecure errors on the Azure deployment of RPSArena.
+  - Suspicions: wrong port binding on Azure (WEBSITES_PORT) and missing Mongo TLS env toggles for managed clusters.
+  - Plan included adding env parsing utilities, wiring MongoClient options, refreshing docs, and expanding tests.
+Position:
+  - Address configuration gaps rather than code-level TLS hacks; give operators explicit knobs and guidance.
+Recommendations:
+  - Implement env helper for port + Mongo TLS/timeouts, use it in bootstrap/server, and log Mongo fallbacks.
+  - Regenerate deployment docs to advertise the new env variables and rerun full test suites (npm test, pytest). 

@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: ArchitectA
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - Azure-hosted deployment still reports SSL/insecure errors even though the GitHub workflow succeeds.
+  - The Node server previously only honored PORT and did not surface TLS requirements for MongoDB hosts that enforce secure connections.
+  - App Service and Azure container plans often inject WEBSITES_PORT and expect explicit TLS flags for managed Mongo endpoints.
+Position:
+  - Treat the SSL symptom as a hosting misconfiguration: failing to bind to the expected Azure port or hitting MongoDB without TLS will present as handshake/protocol failures.
+  - We should make the server honor WEBSITES_PORT and expose first-class Mongo TLS toggles so operators can align with Azure defaults without code edits.
+Recommendations:
+  - Add a shared env helper that resolves PORT/WEBSITES_PORT and Mongo TLS options, and use it in bootstrap/server startup.
+  - Document the new env variables (WEBSITES_PORT, MONGODB_TLS*, short timeouts) in the deployment guide so Azure operators have a checklist.
+  - Keep tests at 100% coverage to lock in the new configuration surface and prevent regressions. 

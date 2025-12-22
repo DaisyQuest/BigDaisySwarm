@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: ArchitectB
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - SSL/protocol errors persist on the Azure-hosted RPSArena instance.
+  - Azure Web Apps/containers sometimes expose WEBSITES_PORT instead of PORT, leading to non-responsive backends if ignored.
+  - MongoDB hosts on Azure frequently require TLS and sometimes custom CA handling, but we did not surface env toggles to control the driver.
+Position:
+  - The most probable cause is a misaligned hosting config: the process may be listening on the wrong port for Azure’s reverse proxy and/or failing TLS negotiation with Mongo.
+  - Addressing this at the configuration layer (env parsing + documentation) is safer than hardcoding TLS relaxation.
+Recommendations:
+  - Centralize env parsing so the server prefers PORT then WEBSITES_PORT and emits helpful bootstrap logging.
+  - Add Mongo TLS-related env options (MONGODB_TLS, MONGODB_TLS_ALLOW_INVALID_CERTS, MONGODB_TLS_CA_FILE, timeouts) and feed them into MongoClient.
+  - Update deployment docs to call out the Azure-specific port variable and TLS flags so operators know what to set before deploying. 

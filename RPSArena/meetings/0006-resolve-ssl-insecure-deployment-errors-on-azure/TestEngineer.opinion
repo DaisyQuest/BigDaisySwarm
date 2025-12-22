@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: TestEngineer
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - SSL/protocol errors persist after deploy; we need assurance the runtime is binding to the correct port and handling Mongo TLS expectations.
+  - New env parsing and Mongo options will add branches that must stay at 100% coverage.
+Position:
+  - Validate port/TLS helpers with unit tests that exercise every branch (truthy/falsy booleans, invalid timeout, PORT vs WEBSITES_PORT fallback).
+  - Keep the suite-wide coverage gates intact and re-run the repository-level pytest suite after Node tests to satisfy repo instructions.
+Recommendations:
+  - Add a dedicated env.test.js for the helper, expand bootstrap/mongoStore tests to confirm options propagate, and regenerate docs without breaking test expectations.
+  - Execute `npm test` and `pytest --maxfail=1` from repo root and capture their outputs for the final report. 

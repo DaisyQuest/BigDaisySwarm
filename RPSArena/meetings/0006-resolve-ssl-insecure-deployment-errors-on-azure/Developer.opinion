@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: Developer
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - Azure deployment still throws SSL/insecure messages; likely tied to misaligned port binding or Mongo TLS requirements.
+  - The server only read PORT, so WEBSITES_PORT from Azure containers was ignored, and MongoClient options were not configurable from env.
+Position:
+  - Implement code changes to honor WEBSITES_PORT and to push Mongo TLS options from environment variables into MongoClient so Azure-managed Mongo endpoints can negotiate TLS cleanly.
+  - Add targeted tests to guarantee the new env parsing is covered and bootstrap uses the supplied client options.
+Recommendations:
+  - Introduce a reusable env utility for port resolution and Mongo TLS/timeouts, consume it in server/bootstrap, and add logging on Mongo fallbacks.
+  - Regenerate deployment docs to list the new env variables so operations can set them before the next deploy. 

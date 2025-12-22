@@ -16,9 +16,10 @@ test("chooseStore returns Mongo store and wires exit handler", async () => {
   let closeCalled = false;
   let exitCallback;
   const fakeClient = { close: () => (closeCalled = true) };
-  const connector = async (uri, dbName) => {
+  const connector = async (uri, dbName, _factory, options) => {
     assert.equal(uri, "mongo://example");
     assert.equal(dbName, "customdb");
+    assert.deepEqual(options, { tls: true });
     return { store: { kind: "mongo" }, client: fakeClient };
   };
   const onExit = (signal, cb) => {
@@ -29,6 +30,7 @@ test("chooseStore returns Mongo store and wires exit handler", async () => {
   const { store, client, usedMongo, error } = await chooseStore({
     mongoUri: "mongo://example",
     dbName: "customdb",
+    mongoOptions: { tls: true },
     connector,
     onExit,
   });
@@ -59,6 +61,23 @@ test("chooseStore logs and falls back on Mongo connection failure", async () => 
   assert.equal(result.store, fallbackStore);
   assert.equal(result.error, error);
   assert.ok(messages.some((msg) => msg.includes("Failed to connect")));
+});
+
+test("chooseStore forwards explicit Mongo client options", async () => {
+  const mongoOptions = { tlsAllowInvalidCertificates: true, serverSelectionTimeoutMS: 5000 };
+  let receivedOptions;
+  const connector = async (uri, dbName, _factory, options) => {
+    receivedOptions = options;
+    return { store: { kind: "mongo" }, client: null };
+  };
+
+  const result = await chooseStore({ mongoUri: "mongodb://secure", connector, mongoOptions });
+
+  assert.equal(result.usedMongo, true);
+  assert.equal(result.error, undefined);
+  assert.equal(result.client, null);
+  assert.equal(result.store.kind, "mongo");
+  assert.equal(receivedOptions, mongoOptions);
 });
 
 test("buildServices returns fully wired services", async () => {
