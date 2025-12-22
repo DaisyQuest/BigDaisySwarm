@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: NoteTaker
+Task: continue developing the software
+Context:
+- Browser error reported: `openid is not defined` from runtime-config.js due to unquoted scope values.
+- Deployment workflow regression: health check paths absent for Azure web apps.
+Position:
+- Documented failure signals and planned remediations for runtime config hardening and workflow alignment.
+Recommendations:
+- Normalize env-derived scopes/booleans in entrypoint.sh, escaping strings before writing runtime-config.js.
+- Add CI coverage for entrypoint output and restore healthCheckPath lines in azure-containers.yml.

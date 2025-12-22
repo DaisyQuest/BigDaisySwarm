@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0023-continue-developing-the-software
+Agent: ArchitectB
+Task: continue developing the software
+Context:
+- Scope parsing and boolean handling in the web client entrypoint are brittle and produce invalid JS when env vars are not strictly JSON.
+- CI now expects Azure workflow health probes to be explicitly configured for both services.
+Position:
+- Support a shell-only normalization pipeline that tolerates comma/space-separated scopes and inconsistent casing for booleans without adding new runtime dependencies.
+- Keep deployment automation self-documenting by including health check paths directly in the workflow scripts.
+Recommendations:
+- Strip quotes/brackets, split scopes on commas/whitespace, and rebuild quoted arrays to guarantee valid runtime-config.js.
+- Map SYNC_ENABLED/USE_LOCAL_STORAGE to true/false using a permissive matcher (1/0, yes/no, true/false) with defaults on unknown values.
+- Embed healthCheckPath flags in both az webapp update calls so production deployments align with readiness checks.

@@ -206,6 +206,7 @@ jobs:
 
 
 
+
       - name: Configure example server container + registry credentials
         uses: azure/cli@v2
         env:
