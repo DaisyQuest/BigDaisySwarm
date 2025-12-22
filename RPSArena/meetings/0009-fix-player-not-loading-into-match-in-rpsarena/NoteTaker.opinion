@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: NoteTaker
+Task: Fix player not loading into match in RPSArena
+Context:
+  - Problem: queued users never learned about their match because the UI didn’t poll the matchmaking endpoint after the initial submit.
+  - Constraint: keep API unchanged, preserve 100% coverage, and avoid DOM-heavy testing.
+Position:
+  - Add a reusable matchmaking poller and plug it into both queue buttons so matches announce automatically.
+Recommendations:
+  - Build the poller with injectable timers for tests, guard against overlapping requests, and stop on match/error.
+  - Update `main.js` to set queued feedback immediately, start polling, and show matched ids with opponent info.

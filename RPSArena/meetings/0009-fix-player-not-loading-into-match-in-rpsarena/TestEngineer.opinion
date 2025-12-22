@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: TestEngineer
+Task: Fix player not loading into match in RPSArena
+Context:
+  - No automated coverage existed for the client-side matchmaking flow, leaving polling gaps undetected.
+  - Branch coverage requirement stays at 100% (`npm test` via c8) plus repo-level `pytest --maxfail=1`.
+Position:
+  - Add unit tests around a pure matchmaking poller to exercise queued→matched transitions, error propagation, and duplicate start handling.
+  - Keep end-to-end expectations intact by reusing the same API contract inside the tests (queued/matched statuses).
+Recommendations:
+  - Cover both error-handled and uncaught error paths to satisfy branch coverage in the poller.
+  - Assert scheduler/canceller interactions to ensure timers are cleared on match or failure.
+  - Run `npm test` after adding the new suite, then rerun repository `pytest --maxfail=1` to confirm nothing regressed.

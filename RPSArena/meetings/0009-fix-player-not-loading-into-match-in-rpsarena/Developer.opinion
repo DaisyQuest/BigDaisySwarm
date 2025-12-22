@@ -1,0 +1,16 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: Developer
+Task: Fix player not loading into match in RPSArena
+Context:
+  - The client only showed a queued toast and never re-polled `/api/matchmaking`, so the first player never saw the match payload after pairing.
+  - There was no shared, testable helper to manage matchmaking polling or guard against overlapping fetches.
+  - Coverage target remains 100% across Node tests and repo-level pytest.
+Position:
+  - Introduce a reusable matchmaking poller that repeatedly calls the endpoint until a matched payload arrives or an error occurs.
+  - Wire the UI to start polling automatically after a queued response so the player receives the match id/opponent without manual retries.
+Recommendations:
+  - Add a dedicated `MatchmakingPoller` module with scheduler injection and re-entry protection, plus thorough tests for queued, matched, error, and misconfigured flows.
+  - Update `public/main.js` to reuse the poller on queue/bot flows, surface matched status with opponent context, and cancel polling on completion or failure.
+  - Keep `npm test` (c8 --100) and repo `pytest --maxfail=1` in the workflow to ensure coverage stays perfect.

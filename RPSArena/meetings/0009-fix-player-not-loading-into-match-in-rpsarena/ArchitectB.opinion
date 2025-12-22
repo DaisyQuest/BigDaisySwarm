@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0009-fix-player-not-loading-into-match-in-rpsarena
+Agent: ArchitectB
+Task: Fix player not loading into match in RPSArena
+Context:
+  - The first player never learned about pairings because the browser did not poll `/api/matchmaking` after receiving a queued status.
+  - Polling logic was intertwined with UI wiring, blocking targeted tests for timing, retries, and error propagation.
+Position:
+  - Encapsulate matchmaking polling in a dedicated utility with injectable timers and explicit queued/matched/error callbacks.
+  - Reuse the utility in `main.js` so both standard queue and bot queue trigger automatic polling and user feedback.
+Recommendations:
+  - Default to interval-based polling with re-entry protection, and allow dependency injection to keep unit tests deterministic.
+  - Ensure match announcements include opponent context and that polling stops cleanly on errors to avoid runaway requests.
+  - Maintain the current API surface; the fix should be entirely client-side to preserve backend contracts.

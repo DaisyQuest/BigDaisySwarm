@@ -1,3 +1,4 @@
+import { MatchmakingPoller } from "./matchPolling.js";
 import { renderHighscores, renderLeaderboard, renderMatchHistory, renderNews, statusMessage } from "./viewUtils.js";
 
 const registrationForm = document.getElementById("registration-form");
@@ -28,6 +29,7 @@ const loadHighscoresButton = document.getElementById("load-highscores");
 const userSummary = document.getElementById("user-summary");
 
 let currentUser = null;
+let matchmakingPoller = null;
 
 function showHome() {
   registrationSection.classList.add("hidden");
@@ -92,6 +94,51 @@ function setCurrentUser(user) {
   updateUserSummary(user);
 }
 
+function stopMatchmakingPoller() {
+  if (matchmakingPoller) {
+    matchmakingPoller.stop();
+    matchmakingPoller = null;
+  }
+}
+
+function describeOpponent(match) {
+  if (!match?.players || !currentUser) return "";
+  const opponent = match.players.find((id) => id !== currentUser.id);
+  return opponent ? ` vs ${opponent}` : "";
+}
+
+function announceMatch(match) {
+  const matchId = match?.id || "pending";
+  setFeedback(queueFeedback, `Matched! Match id: ${matchId}${describeOpponent(match)}`);
+}
+
+function createMatchmakingRequest(payload) {
+  return () => api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
+}
+
+function startMatchmakingPolling(request) {
+  stopMatchmakingPoller();
+  setFeedback(queueFeedback, "Queued. Keep this tab open for pairing.");
+  matchmakingPoller = new MatchmakingPoller({
+    request,
+    onQueued: () => setFeedback(queueFeedback, "Queued. Keep this tab open for pairing."),
+    onMatched: (match) => announceMatch(match),
+    onError: (error) => setFeedback(queueFeedback, error?.message || "Matchmaking failed", true),
+  });
+  matchmakingPoller.start();
+}
+
+async function submitMatchmaking(payload) {
+  stopMatchmakingPoller();
+  const request = createMatchmakingRequest(payload);
+  const status = await request();
+  if (status.status === "matched") {
+    announceMatch(status.match);
+    return;
+  }
+  startMatchmakingPolling(request);
+}
+
 registrationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(registrationForm);
@@ -139,12 +186,7 @@ queueForm.addEventListener("submit", async (event) => {
   payload.userId = currentUser.id;
   payload.roundCount = Number(payload.roundCount || 3);
   try {
-    const status = await api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
-    if (status.status === "matched") {
-      setFeedback(queueFeedback, `Matched! Match id: ${status.match.id} vs ${status.match.players[1]}`);
-    } else {
-      setFeedback(queueFeedback, "Queued. Keep this tab open for pairing.");
-    }
+    await submitMatchmaking(payload);
   } catch (error) {
     setFeedback(queueFeedback, error.message, true);
   }
@@ -161,8 +203,7 @@ queueBotButton.addEventListener("click", async () => {
   payload.roundCount = Number(payload.roundCount || 3);
   payload.playBot = true;
   try {
-    const status = await api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
-    setFeedback(queueFeedback, `Bot match ready! Match id: ${status.match.id}`);
+    await submitMatchmaking(payload);
   } catch (error) {
     setFeedback(queueFeedback, error.message, true);
   }
