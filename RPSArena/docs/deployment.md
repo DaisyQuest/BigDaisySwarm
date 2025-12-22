@@ -10,16 +10,20 @@ Matchmaking, unlockables, and leaderboards depend on the same backing store, so 
 
 - API base: /api/* endpoints for registration, login, matchmaking, leaderboards, highscores, news, and match history.
 - Static content: served from /public with index.html, styles.css, and client scripts.
-- Process model: single Node.js process bound to PORT (defaults to 3000).
+- Process model: single Node.js process bound to PORT/WEBSITES_PORT (defaults to 3000).
 
 ## Prerequisites
 Node.js 22+ installed on the host or base image.
 Network access to MongoDB if you want persistent storage.
 A deployment environment capable of setting environment variables for secrets.
 
-- `PORT` (optional): HTTP port; defaults to 3000.
+- `PORT` (optional): HTTP port; defaults to 3000. Set `WEBSITES_PORT` when Azure injects it for container routing.
 - `MONGODB_URI` (recommended): MongoDB connection string. If omitted, the server runs in-memory and loses data on restart.
 - `MONGODB_DB` (optional): Database name; defaults to `rpsarena`.
+- `MONGODB_TLS` (optional): Set to `true` when your MongoDB host requires TLS (common on Azure-managed Mongo endpoints).
+- `MONGODB_TLS_ALLOW_INVALID_CERTS` (optional): Set to `true` only for self-signed/test certificates to bypass strict validation.
+- `MONGODB_TLS_CA_FILE` (optional): Path to a CA bundle when custom trust roots are required.
+- `MONGODB_SERVER_SELECTION_TIMEOUT_MS` (optional): Keep connection attempts short so fallbacks engage quickly when Mongo is unreachable.
 - `NODE_ENV` (optional): Set to `production` to align with hardened hosting defaults.
 
 ## Local validation
@@ -82,12 +86,15 @@ CMD ["npm", "start"]
 **Outcome:** Runnable artifact that starts the Node.js server.
 
 ### Configure environment
-Bind PORT, supply MONGODB_URI and MONGODB_DB, and set NODE_ENV=production. Ensure outbound connectivity to MongoDB.
+Bind PORT/WEBSITES_PORT for Azure routing, supply Mongo credentials, and turn on TLS flags if your cluster enforces certificates. Set NODE_ENV=production to harden defaults.
 
 ```bash
     PORT=3000
+    WEBSITES_PORT=3000 # required on some Azure plans for container routing
     MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/rpsarena?retryWrites=true&w=majority
     MONGODB_DB=rpsarena
+    MONGODB_TLS=true
+    MONGODB_TLS_ALLOW_INVALID_CERTS=false
 ```
 **Outcome:** Runtime configured with durable storage and predictable port binding.
 
@@ -106,11 +113,12 @@ Track the following items each time you roll out to keep environments consistent
 - Backups: ensure MongoDB backups or snapshots are enabled.
 - Scaling: run at least two replicas if your platform supports it; the server is stateless aside from MongoDB.
 - Logging: ship stdout/stderr to your logging pipeline for API call traces and errors.
+- Mongo TLS: align `MONGODB_TLS`/`MONGODB_TLS_ALLOW_INVALID_CERTS`/`MONGODB_TLS_CA_FILE` with your provider to avoid SSL handshake errors.
 - TLS: terminate TLS at the platform or a reverse proxy in front of the Node process.
 - Static assets: confirm /public is being served; a blank homepage often means the working directory is wrong.
 
 ## Production readiness checklist
-- Environment variables set: PORT, MONGODB_URI, MONGODB_DB, NODE_ENV=production.
+- Environment variables set: PORT or WEBSITES_PORT, MONGODB_URI, MONGODB_DB, MONGODB_TLS flags, NODE_ENV=production.
 - MongoDB reachable from the app host and credentials validated.
 - npm test and pytest --maxfail=1 have both been executed successfully.
 - Smoke checks on /api/news and /api/leaderboard succeed post-deploy.

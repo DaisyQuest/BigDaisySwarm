@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 
 import { MODES, VARIANTS } from "./constants.js";
 import { buildServices, createJsonResponder } from "./services/bootstrap.js";
+import { resolveMongoClientOptions, resolvePort } from "./utils/env.js";
 import { requireFields } from "./utils/validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,7 +61,8 @@ function parseBoolean(value) {
   return value === "true" || value === true;
 }
 
-const servicesPromise = buildServices();
+const servicesPromise = buildServices({ mongoOptions: resolveMongoClientOptions() });
+const port = resolvePort();
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -146,9 +148,25 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`RPS Arena server listening on port ${PORT}`);
+servicesPromise
+  .then(({ usedMongo, error }) => {
+    if (!usedMongo && error && console.warn) {
+      console.warn("MongoDB unavailable; using in-memory store", error);
+    }
+  })
+  .catch((error) => {
+    console.error("Service bootstrap failed", error);
+  });
+
+server.listen(port, () => {
+  servicesPromise
+    .then((services) => (services.usedMongo ? "MongoDB" : "in-memory"))
+    .then((backend) => {
+      console.log(`RPS Arena server listening on port ${port} using ${backend} storage`);
+    })
+    .catch((error) => {
+      console.error(`RPS Arena server listening on port ${port} (storage unavailable during bootstrap)`, error);
+    });
 });
 
 export default server;

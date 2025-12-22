@@ -1,0 +1,15 @@
+# Opinion
+
+Meeting: 0006-resolve-ssl-insecure-deployment-errors-on-azure
+Agent: Critic
+Task: resolve SSL/insecure deployment errors on Azure
+Context:
+  - Azure still reports SSL/insecure errors on the deployed site.
+  - Proposed fix depends on env flags (WEBSITES_PORT, MONGODB_TLS*) and relaxed certificate handling.
+Position:
+  - Adding TLS bypass flags (allow invalid certs) can mask real security issues if operators enable them by default.
+  - Logging Mongo fallbacks is useful, but we still cannot observe the live host from this environment, so validation stops at unit/integration tests.
+Recommendations:
+  - Make the new env options explicit in docs and keep defaults strict (do not silently allow invalid certs).
+  - Call out the risk that operators might toggle TLS relaxation in production; encourage using CA bundles instead.
+  - If SSL errors persist after this change, request Azure logs to confirm whether the port binding or Mongo handshake is failing. 

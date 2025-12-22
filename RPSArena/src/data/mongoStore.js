@@ -13,9 +13,9 @@ export class MongoStore {
     this.newsCollection = db.collection("news");
   }
 
-  static async connect(uri, dbName = "rpsarena", clientFactory) {
-    const factory = clientFactory ?? ((url) => new MongoClient(url));
-    const client = factory(uri);
+  static async connect(uri, dbName = "rpsarena", clientFactory, clientOptions = {}) {
+    const factory = clientFactory ?? ((url, options) => new MongoClient(url, options));
+    const client = factory(uri, clientOptions);
     await client.connect();
     const db = client.db(dbName);
     const store = new MongoStore(db);

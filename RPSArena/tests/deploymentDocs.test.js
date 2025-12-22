@@ -19,11 +19,14 @@ test("renders markdown and html from the shared deployment guide", async () => {
 
   assert.match(markdown, /RPS Arena Deployment Playbook/);
   assert.match(markdown, /MONGODB_URI/);
+  assert.match(markdown, /WEBSITES_PORT/);
+  assert.match(markdown, /MONGODB_TLS/);
   assert.match(markdown, /Smoke check APIs/);
   assert.match(markdown, /Production readiness checklist/);
 
   assert.match(html, /<h1>RPS Arena Deployment Playbook/);
   assert.match(html, /MONGODB_URI/);
+  assert.match(html, /WEBSITES_PORT/);
   assert.match(html, /Smoke test after deploy/);
   assert.match(html, /Production readiness checklist/);
 });

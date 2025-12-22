@@ -186,6 +186,22 @@ test("MongoStore.connect wires a client factory", async () => {
   assert.ok(fakeClient.closed);
 });
 
+test("MongoStore.connect forwards client options to the factory", async () => {
+  const db = new FakeDb();
+  const fakeClient = new FakeClient(db);
+  let capturedOptions = null;
+
+  const factory = (uri, options) => {
+    assert.equal(uri, "mongodb://secure");
+    capturedOptions = options;
+    return fakeClient;
+  };
+
+  await MongoStore.connect("mongodb://secure", "securedb", factory, { tls: true, tlsAllowInvalidCertificates: true });
+
+  assert.deepEqual(capturedOptions, { tls: true, tlsAllowInvalidCertificates: true });
+});
+
 test("MongoStore.connect can use default MongoClient factory", async () => {
   const db = new FakeDb();
   const originalConnect = MongoClient.prototype.connect;
