@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from .calendar import CalendarError, CalendarService, DSLExecutor, EventService, Participant, ParticipantService
 from .health import http_status_code, liveness_check, readiness_check, summarize
-from .serialization import serialize_storage
+from .serialization import hydrate_storage, serialize_storage
 from .storage import CalendarStorage, InMemoryCalendarStorage
 
 
@@ -77,8 +77,8 @@ class ExampleServer:
                 self.send_header("Content-Length", str(len(body)))
                 if server.enable_cors:
                     self.send_header("Access-Control-Allow-Origin", "*")
-                    self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                    self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+                    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                    self.send_header("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS")
                 self.end_headers()
                 self.wfile.write(body)
 
@@ -106,8 +106,8 @@ class ExampleServer:
                     self.send_response(204)
                     if server.enable_cors:
                         self.send_header("Access-Control-Allow-Origin", "*")
-                        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                        self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+                        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                        self.send_header("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS")
                     self.end_headers()
                     return
                 self._respond_not_found(path)
@@ -163,6 +163,32 @@ class ExampleServer:
                     self._write_json({"results": results, "state": snapshot})
                 except Exception as exc:
                     self._write_json({"results": results, "state": {"error": str(exc)}}, status=500)
+
+            def do_PUT(self) -> None:  # noqa: N802
+                path = urlparse(self.path).path
+                if path != "/state":
+                    self._respond_not_found(path)
+                    return
+
+                length = int(self.headers.get("Content-Length") or 0)
+                raw_body = self.rfile.read(length).decode("utf-8") if length else ""
+                try:
+                    payload = json.loads(raw_body or "{}")
+                except json.JSONDecodeError as exc:
+                    self._write_json({"error": f"Invalid JSON payload: {exc.msg}"}, status=400)
+                    return
+
+                try:
+                    hydrate_storage(server._storage, payload)
+                    snapshot = serialize_storage(server._storage)
+                except CalendarError as exc:
+                    self._write_json({"error": str(exc)}, status=400)
+                    return
+                except Exception as exc:
+                    self._write_json({"error": f"Failed to persist state: {exc}"}, status=500)
+                    return
+
+                self._write_json({"state": snapshot}, status=200)
 
             def log_message(self, format, *args):  # noqa: A003
                 return

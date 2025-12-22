@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0027-fix-azure-deploy-cors-for-demo
+Agent: Developer
+Task: fix azure deploy cors for demo
+Context:
+The Azure-hosted demo blocked the web client because the example server did not allow PUT or the Authorization header through CORS, and the server lacked a /state PUT handler to persist changes coming from the client’s remote adapter.
+Position:
+- The example server should support authenticated browser clients by honoring Authorization headers in CORS responses and by exposing a safe PUT /state endpoint that validates input before replacing storage.
+- Hydrating storage must reuse the same validation logic as load_storage to prevent malformed snapshots from being accepted.
+Recommendations:
+- Expand the example server CORS headers to include Authorization and allow PUT on /state while keeping the existing GET/POST/OPTIONS paths intact.
+- Add a PUT /state handler that parses JSON, validates via a shared hydrate_storage helper, and returns the updated snapshot.
+- Cover the new helper and endpoint with tests for success and error paths to protect Azure deployments from regressions.

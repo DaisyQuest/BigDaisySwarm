@@ -142,6 +142,23 @@ def serialize_storage(storage: CalendarStorage) -> Dict[str, object]:
     return {"calendars": calendars, "events": events}
 
 
+def _populate_storage_from_payload(storage: InMemoryCalendarStorage, payload: Mapping[str, object]) -> None:
+    calendars = payload.get("calendars", [])
+    if not isinstance(calendars, list):
+        raise CalendarError("Stored calendars must be a list")
+    for calendar in calendars:
+        storage.save_calendar(calendar)
+
+    events = payload.get("events", [])
+    if not isinstance(events, list):
+        raise CalendarError("Stored events must be a list")
+    for event_raw in events:
+        if not isinstance(event_raw, Mapping):
+            raise CalendarError("Each stored event entry must be a mapping")
+        event = _deserialize_event(event_raw)
+        storage.save_event(event)
+
+
 def load_storage(path: Optional[Path]) -> InMemoryCalendarStorage:
     storage = InMemoryCalendarStorage()
     if path is None or not path.exists():
@@ -152,22 +169,18 @@ def load_storage(path: Optional[Path]) -> InMemoryCalendarStorage:
     except json.JSONDecodeError as exc:
         raise CalendarError(f"Failed to read calendar storage from {path}: invalid JSON") from exc
 
-    calendars = raw.get("calendars", [])
-    if not isinstance(calendars, list):
-        raise CalendarError("Stored calendars must be a list")
-    for calendar in calendars:
-        storage.save_calendar(calendar)
-
-    events = raw.get("events", [])
-    if not isinstance(events, list):
-        raise CalendarError("Stored events must be a list")
-    for event_raw in events:
-        if not isinstance(event_raw, Mapping):
-            raise CalendarError("Each stored event entry must be a mapping")
-        event = _deserialize_event(event_raw)
-        storage.save_event(event)
-
+    _populate_storage_from_payload(storage, raw)
     return storage
+
+
+def hydrate_storage(storage: InMemoryCalendarStorage, payload: Mapping[str, object]) -> None:
+    if not isinstance(storage, InMemoryCalendarStorage):
+        raise CalendarError("Storage must be an InMemoryCalendarStorage to hydrate state")
+
+    refreshed = InMemoryCalendarStorage()
+    _populate_storage_from_payload(refreshed, payload)
+    storage._calendars = dict(refreshed._calendars)
+    storage._events = dict(refreshed._events)
 
 
 def dump_storage(storage: InMemoryCalendarStorage, path: Path) -> None:
@@ -176,4 +189,3 @@ def dump_storage(storage: InMemoryCalendarStorage, path: Path) -> None:
     with path.open("w", encoding="utf-8") as output:
         json.dump(payload, output, indent=2)
         output.write("\n")
-
