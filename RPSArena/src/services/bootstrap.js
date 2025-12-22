@@ -4,6 +4,7 @@ import { MatchService } from "./matchService.js";
 import { UnlockableService } from "./unlockableService.js";
 import { UserService } from "./userService.js";
 import { resolveMongoClientOptions } from "../utils/env.js";
+import { createLogger } from "../utils/logging.js";
 
 export async function chooseStore({
   mongoUri = process.env.MONGODB_URI,
@@ -33,10 +34,11 @@ export async function chooseStore({
 }
 
 export async function buildServices(options = {}) {
-  const { store, client, usedMongo, error } = await chooseStore(options);
-  const userService = new UserService(store);
-  const unlockableService = new UnlockableService(store);
-  const matchService = new MatchService(store, userService, unlockableService);
+  const logger = createLogger(options.logger);
+  const { store, client, usedMongo, error } = await chooseStore({ ...options, logger });
+  const userService = new UserService(store, logger);
+  const unlockableService = new UnlockableService(store, logger);
+  const matchService = new MatchService(store, userService, unlockableService, logger);
   return { store, client, usedMongo, error, userService, unlockableService, matchService };
 }
 

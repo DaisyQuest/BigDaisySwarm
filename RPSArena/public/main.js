@@ -1,5 +1,6 @@
 import { MatchmakingPoller } from "./matchPolling.js";
 import { renderHighscores, renderLeaderboard, renderMatchHistory, renderNews, statusMessage } from "./viewUtils.js";
+import { createLogger, formatLog } from "./logging.js";
 
 const registrationForm = document.getElementById("registration-form");
 const registrationFeedback = document.getElementById("registration-feedback");
@@ -30,6 +31,7 @@ const userSummary = document.getElementById("user-summary");
 
 let currentUser = null;
 let matchmakingPoller = null;
+const clientLogger = createLogger(console);
 
 function showHome() {
   registrationSection.classList.add("hidden");
@@ -92,12 +94,14 @@ function updateUserSummary(user) {
 function setCurrentUser(user) {
   currentUser = user;
   updateUserSummary(user);
+  clientLogger.info(formatLog("Current user set", { userId: user?.id }));
 }
 
 function stopMatchmakingPoller() {
   if (matchmakingPoller) {
     matchmakingPoller.stop();
     matchmakingPoller = null;
+    clientLogger.debug("Stopped matchmaking poller from UI");
   }
 }
 
@@ -110,9 +114,11 @@ function describeOpponent(match) {
 function announceMatch(match) {
   const matchId = match?.id || "pending";
   setFeedback(queueFeedback, `Matched! Match id: ${matchId}${describeOpponent(match)}`);
+  clientLogger.info(formatLog("Announced match", { matchId }));
 }
 
 function createMatchmakingRequest(payload) {
+  clientLogger.info(formatLog("Prepared matchmaking payload", { mode: payload.mode, variant: payload.variant, roundCount: payload.roundCount, playBot: !!payload.playBot }));
   return () => api("/api/matchmaking", { method: "POST", body: JSON.stringify(payload) });
 }
 
@@ -124,6 +130,7 @@ function startMatchmakingPolling(request) {
     onQueued: () => setFeedback(queueFeedback, "Queued. Keep this tab open for pairing."),
     onMatched: (match) => announceMatch(match),
     onError: (error) => setFeedback(queueFeedback, error?.message || "Matchmaking failed", true),
+    logger: clientLogger,
   });
   matchmakingPoller.start();
 }
@@ -171,6 +178,7 @@ loginForm.addEventListener("submit", async (event) => {
 function requireAuth(feedbackEl) {
   if (!currentUser) {
     setFeedback(feedbackEl, "Please login or register first.", true);
+    clientLogger.warn("Auth required for action");
     throw new Error("Authentication required");
   }
 }
@@ -186,6 +194,7 @@ queueForm.addEventListener("submit", async (event) => {
   payload.userId = currentUser.id;
   payload.roundCount = Number(payload.roundCount || 3);
   try {
+    clientLogger.info(formatLog("Submitting matchmaking request", { ...payload }));
     await submitMatchmaking(payload);
   } catch (error) {
     setFeedback(queueFeedback, error.message, true);
@@ -203,6 +212,7 @@ queueBotButton.addEventListener("click", async () => {
   payload.roundCount = Number(payload.roundCount || 3);
   payload.playBot = true;
   try {
+    clientLogger.info(formatLog("Submitting bot matchmaking request", { ...payload }));
     await submitMatchmaking(payload);
   } catch (error) {
     setFeedback(queueFeedback, error.message, true);
@@ -221,8 +231,10 @@ avatarForm.addEventListener("submit", async (event) => {
   try {
     const user = await api("/api/avatar", { method: "PATCH", body: JSON.stringify(payload) });
     setFeedback(avatarFeedback, `Avatar updated to ${user.avatarColor}`);
+    clientLogger.info(formatLog("Avatar updated", { userId: payload.userId, color: payload.avatarColor }));
   } catch (error) {
     setFeedback(avatarFeedback, error.message, true);
+    clientLogger.error(formatLog("Avatar update failed", { error: error.message }));
   }
 });
 
@@ -230,8 +242,10 @@ async function loadNews() {
   try {
     const news = await api("/api/news");
     newsFeed.innerHTML = renderNews(news);
+    clientLogger.debug(formatLog("Loaded news", { count: news?.length || 0 }));
   } catch (error) {
     newsFeed.innerHTML = statusMessage(error.message, "error");
+    clientLogger.error(formatLog("Failed loading news", { error: error.message }));
   }
 }
 
@@ -239,8 +253,10 @@ async function loadLeaderboard(limit = 100, offset = 0) {
   try {
     const board = await api(`/api/leaderboard?limit=${limit}&offset=${offset}`);
     leaderboardEl.innerHTML = renderLeaderboard(board, offset);
+    clientLogger.debug(formatLog("Loaded leaderboard", { limit, offset }));
   } catch (error) {
     leaderboardEl.innerHTML = `<li>${error.message}</li>`;
+    clientLogger.error(formatLog("Failed loading leaderboard", { error: error.message }));
   }
 }
 
@@ -250,8 +266,10 @@ async function loadHighscores() {
   try {
     const scores = await api(`/api/highscores?page=${page}&pageSize=${size}`);
     highscoresEl.innerHTML = renderHighscores(scores, page, size);
+    clientLogger.debug(formatLog("Loaded highscores", { page, pageSize: size }));
   } catch (error) {
     highscoresEl.innerHTML = `<li>${error.message}</li>`;
+    clientLogger.error(formatLog("Failed loading highscores", { error: error.message }));
   }
 }
 
@@ -259,13 +277,16 @@ async function loadHistory() {
   const playerId = historyUserInput.value.trim() || currentUser?.id;
   if (!playerId) {
     setFeedback(historyContainer, "Please login or enter a player id.", true);
+    clientLogger.warn("History requested without player id");
     return;
   }
   try {
     const history = await api(`/api/history?playerId=${encodeURIComponent(playerId)}&rankedOnly=true`);
     historyContainer.innerHTML = renderMatchHistory(history);
+    clientLogger.debug(formatLog("Loaded history", { playerId, count: history?.length || 0 }));
   } catch (error) {
     historyContainer.innerHTML = `<div class="match-card">${error.message}</div>`;
+    clientLogger.error(formatLog("Failed loading history", { error: error.message }));
   }
 }
 

@@ -3,6 +3,7 @@ import { MODES, VARIANTS } from "../constants.js";
 import { createUser } from "../data/modelFactories.js";
 import { eloDelta, scoreClassicMatch, scoreExtremeMatch } from "../game/rpsLogic.js";
 import { validateMode, validateMoveSequence, validateVariant } from "../utils/validation.js";
+import { createLogger, formatLog } from "../utils/logging.js";
 import { hashPassword } from "../utils/crypto.js";
 
 function clone(value) {
@@ -10,10 +11,11 @@ function clone(value) {
 }
 
 export class MatchService {
-  constructor(store, userService, unlockableService) {
+  constructor(store, userService, unlockableService, logger = console) {
     this.store = store;
     this.userService = userService;
     this.unlockableService = unlockableService;
+    this.logger = createLogger(logger);
     this.botId = "arena-bot";
     this.queues = {
       [MODES.CLASSIC]: { [VARIANTS.RANKED]: [], [VARIANTS.CASUAL]: [] },
@@ -68,10 +70,12 @@ export class MatchService {
 
     const activeMatch = this.findActiveMatchByPlayer(playerId);
     if (activeMatch) {
+      this.logger.info(formatLog("Found active match during enqueue", { playerId, matchId: activeMatch.match.id }));
       return { status: "matched", match: clone(activeMatch.match) };
     }
 
     if (this.isPlayerQueued(playerId)) {
+      this.logger.debug(formatLog("Player already queued", { playerId, mode, variant }));
       return { status: "queued" };
     }
 
@@ -81,17 +85,28 @@ export class MatchService {
       const opponent = queue.shift();
       try {
         const resolvedRoundCount = opponent.roundCount;
+        this.logger.info(
+          formatLog("Pairing players from queue", {
+            playerA: opponent.playerId,
+            playerB: playerId,
+            mode,
+            variant,
+            roundCount: resolvedRoundCount,
+          }),
+        );
         return await this.createMatch(opponent.playerId, playerId, {
           mode,
           variant,
           roundCount: resolvedRoundCount,
         });
       } catch (error) {
+        this.logger.error(formatLog("Failed to pair players, restoring queue", { error: error.message }));
         queue.unshift(opponent);
         throw error;
       }
     }
 
+    this.logger.info(formatLog("Queued player for matchmaking", { playerId, mode, variant, roundCount }));
     queue.push({ playerId, roundCount, requestedAt: Date.now() });
     return { status: "queued" };
   }
@@ -105,10 +120,12 @@ export class MatchService {
 
     const activeMatch = this.findActiveMatchByPlayer(playerId);
     if (activeMatch) {
+      this.logger.info(formatLog("Found active bot match", { playerId, matchId: activeMatch.match.id }));
       return { status: "matched", match: clone(activeMatch.match) };
     }
 
     await this.ensureBotUser();
+    this.logger.info(formatLog("Creating bot match", { playerId, mode, variant, roundCount }));
     return this.createMatch(playerId, this.botId, { mode, variant, roundCount });
   }
 
@@ -133,26 +150,31 @@ export class MatchService {
       winner: null,
     };
     this.activeMatches.set(match.id, { match, submissions: {} });
+    this.logger.info(formatLog("Created match", { matchId: match.id, mode, variant, roundCount, players: match.players }));
     return { status: "matched", match: clone(match) };
   }
 
   async submitMoves(matchId, userId, payload) {
     const record = this.activeMatches.get(matchId);
     if (!record) {
+      this.logger.warn(formatLog("Missing match during submission", { matchId }));
       throw new Error("Match not found or already completed");
     }
 
     const { match, submissions } = record;
     if (!match.players.includes(userId)) {
+      this.logger.warn(formatLog("Submission from non-participant", { matchId, userId }));
       throw new Error("Player is not part of this match");
     }
 
     if (match.state === "completed") {
+      this.logger.warn(formatLog("Submission to completed match", { matchId, userId }));
       throw new Error("Match already completed");
     }
 
     const normalized = this.normalizeSubmission(match.mode, payload);
     submissions[userId] = normalized;
+    this.logger.debug(formatLog("Recorded submission", { matchId, userId, mode: match.mode, fields: Object.keys(normalized) }));
 
     if (Object.keys(submissions).length < 2) {
       return { status: "waiting" };
@@ -205,6 +227,7 @@ export class MatchService {
     const playerAData = await this.store.findUserById(playerA);
     const playerBData = await this.store.findUserById(playerB);
     if (!playerAData || !playerBData) {
+      this.logger.error(formatLog("Player missing during resolve", { matchId: match.id }));
       throw new Error("Players must exist before resolving matches");
     }
 
@@ -238,6 +261,16 @@ export class MatchService {
     ]);
 
     await this.store.recordMatch({ ...clone(match), ratingChanges });
+    this.logger.info(
+      formatLog("Completed match", {
+        matchId: match.id,
+        winner: match.winner,
+        ratingChanges,
+        flawless,
+        mode: match.mode,
+        variant: match.variant,
+      }),
+    );
 
     return {
       ...clone(match),
