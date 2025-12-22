@@ -1,0 +1,14 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: Developer
+Task: prepare web client demo with real auth
+Context:
+- Previous demo served seed data without auth; container lacked runtime config generation for OIDC/API wiring.
+- Need hardened remote sync path with JWKS verification and health-checked deployment workflow.
+Position:
+- Add OIDC session helpers and remote adapter that enforce HTTPS + JWKS before syncing; block startup when sync is enabled but config is missing.
+- Generate runtime-config.js from env in entrypoint so App Service deployments stay in sync with secrets.
+Recommendations:
+- Ship staging smoke that exercises the auth redirect and `/state` round-trip with real tokens.
+- Add telemetry for auth/JWKS failures so public demos surface issuer/config drift quickly.

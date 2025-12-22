@@ -461,6 +461,46 @@ try {{
   message = error.message;
 }}
 console.log(JSON.stringify({{ message }}));
-"""
+    """
     result = run_node_json(script)
     assert "Insecure URL blocked" in result["message"]
+
+
+def test_oidc_session_requires_valid_tokens():
+    script = f"""
+import {{ OidcSession }} from 'file://{WEB_ROOT.joinpath("auth.mjs").as_posix()}';
+let message = '';
+const session = new OidcSession({{
+  authorizationEndpoint: 'http://localhost:8000/authorize',
+  tokenEndpoint: 'http://localhost:8000/token',
+  issuer: 'http://localhost:8000',
+  clientId: 'web',
+  redirectUri: 'http://localhost:8000/callback',
+}});
+try {{
+  session.requireAccessToken();
+}} catch (error) {{
+  message = error.message;
+}}
+console.log(JSON.stringify({{ message }}));
+"""
+    result = run_node_json(script)
+    assert "missing or expired" in result["message"]
+
+
+def test_remote_adapter_requires_jwks():
+    script = f"""
+import {{ createRemoteAdapter }} from 'file://{WEB_ROOT.joinpath("remote_adapter.mjs").as_posix()}';
+let message = '';
+try {{
+  createRemoteAdapter({{
+    apiBaseUrl: 'https://api.example.com',
+    tokenProvider: () => 'token',
+  }});
+}} catch (error) {{
+  message = error.message;
+}}
+console.log(JSON.stringify({{ message }}));
+"""
+    result = run_node_json(script)
+    assert "jwksUri is required" in result["message"]

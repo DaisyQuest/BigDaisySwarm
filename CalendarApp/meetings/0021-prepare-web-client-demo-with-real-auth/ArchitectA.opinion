@@ -1,0 +1,13 @@
+# Opinion
+
+Meeting: 0021-prepare-web-client-demo-with-real-auth
+Agent: ArchitectA
+Task: prepare web client demo with real auth
+Context:
+- Demo must no longer surface seed data; it needs real OIDC + API wiring with HTTPS/JWKS enforcement and health-checked deployment.
+Position:
+- Enforce config completeness when sync is on (issuer, client, audience, endpoints, jwks); reject insecure URLs except localhost; verify JWT signatures before state sync.
+- Runtime-config should be generated at startup so container deployments stay aligned with environment secrets.
+Recommendations:
+- Confirm the remote `/state` contract matches the production API; if it differs, insert a narrow adapter rather than loosening auth.
+- Add deployment smoke that exercises the auth redirect and JWKS fetch to keep the public demo trustworthy.
