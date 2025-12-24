@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: Critic
+Task: switch calendar backend to postgres
+Context: Moving to Postgres risks breaking the simple demo path if defaults are unclear.
+Position: Auto-configure in-container Postgres and document how `DATABASE_URL` is set so users aren’t surprised.
+Recommendations:
+- Keep in-memory storage available for quick tests.
+- Document the entrypoint behavior and how to override DB settings.
+- Ensure readiness checks fail loudly when Postgres is unreachable.

@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: NoteTaker
+Task: switch calendar backend to postgres
+Context: Capturing outcomes for the Postgres migration and container defaults.
+Position: Document that the example server now prefers Postgres and auto-sets `DATABASE_URL` when bundled.
+Recommendations:
+- Record how to override DB credentials/host.
+- Note that health endpoints reflect Postgres availability.
+- Keep meeting summary aligned with the implemented changes.

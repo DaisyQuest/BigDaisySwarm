@@ -17,6 +17,8 @@ docker build -f example_server/Dockerfile -t "$ACR_NAME.azurecr.io/calendar-exam
 docker push "$ACR_NAME.azurecr.io/calendar-example:$IMAGE_TAG"
 ```
 
+> **Note:** The container entrypoint boots a local PostgreSQL instance by default and exports `DATABASE_URL` pointing at it. Override `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` to connect to external databases.
+
 ## Create the App Service for Containers
 ```bash
 az appservice plan create --name "plan-calendar-example" --resource-group "$RESOURCE_GROUP" --is-linux --sku B1

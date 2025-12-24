@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: Developer
+Task: switch calendar backend to postgres
+Context: Implementing persistent storage while keeping the example server easy to run.
+Position: Add a Postgres-backed storage class plus container wiring that self-configures with sensible defaults.
+Recommendations:
+- Write integration tests that exercise the Postgres storage (CRUD, overrides, state replacement).
+- Confirm the example server reads `DATABASE_URL` and stays compatible with existing DSL/state endpoints.
+- Keep the Docker entrypoint responsible for starting Postgres and exporting the connection string.
