@@ -1,11 +1,17 @@
 import json
+import os
+import shutil
+import subprocess
 import urllib.error
 import urllib.request
+import uuid
 
 import pytest
+import psycopg
+from psycopg import sql
 
 from bigdaisyswarm.example_server import ExampleServer
-from bigdaisyswarm.storage import CalendarStorage
+from bigdaisyswarm.storage import CalendarStorage, PostgresCalendarStorage
 
 
 def _fetch(url: str, *, method: str = "GET", data: bytes | None = None, headers: dict | None = None):
@@ -41,6 +47,40 @@ class BrokenStorage(CalendarStorage):
 
     def list_events(self, calendar_id):
         return []
+
+
+def _ensure_postgres_cluster():
+    if shutil.which("pg_isready") is None:
+        pytest.skip("PostgreSQL tools not available")
+    ready = subprocess.run(["pg_isready", "-q"], capture_output=True)
+    if ready.returncode != 0:
+        started = subprocess.run(["pg_ctlcluster", "16", "main", "start"], capture_output=True)
+        if started.returncode != 0:
+            pytest.skip("Unable to start PostgreSQL cluster for example server tests")
+    subprocess.run(
+        ["su", "-s", "/bin/bash", "postgres", "-c", "psql -c \"ALTER USER postgres WITH PASSWORD 'postgres';\""],
+        check=True,
+        capture_output=True,
+    )
+
+
+@pytest.fixture()
+def postgres_url():
+    _ensure_postgres_cluster()
+    admin_conninfo = os.getenv("PG_ADMIN_CONNINFO", "postgresql://postgres:postgres@localhost/postgres")
+    db_name = f"calendar_example_{uuid.uuid4().hex}"
+    with psycopg.connect(admin_conninfo, autocommit=True) as conn:
+        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+    conninfo = f"postgresql://postgres:postgres@localhost/{db_name}"
+    try:
+        yield conninfo
+    finally:
+        with psycopg.connect(admin_conninfo, autocommit=True) as conn:
+            conn.execute(
+                sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"),
+                (db_name,),
+            )
+            conn.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
 
 
 def test_health_and_ready_endpoints_report_ok():
@@ -213,5 +253,60 @@ def test_state_put_validates_payload_and_reports_errors():
         )
         assert status == 400
         assert "Stored calendars must be a list" in payload["error"]
+    finally:
+        server.shutdown()
+
+
+def test_example_server_uses_postgres_storage(postgres_url):
+    server = ExampleServer(storage=PostgresCalendarStorage(postgres_url), seed=True)
+    server.serve_in_thread()
+    try:
+        status, state, _ = _fetch_json(f"{server.base_url}/state")
+        assert status == 200
+        assert state["calendars"]
+
+        payload = {
+            "calendars": [{"id": "demo-db", "name": "Demo DB", "owners": ["demo@example.com"]}],
+            "events": [
+                {
+                    "id": "evt-db",
+                    "calendar_id": "demo-db",
+                    "title": "Persisted",
+                    "start": "2026-01-01T12:00:00+00:00",
+                    "end": "2026-01-01T13:00:00+00:00",
+                    "timezone": "UTC",
+                }
+            ],
+        }
+        put_status, put_payload, _ = _fetch_json(
+            f"{server.base_url}/state",
+            method="PUT",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        assert put_status == 200
+        assert put_payload["state"]["calendars"][0]["id"] == "demo-db"
+
+        ready_status, ready_payload, _ = _fetch_json(f"{server.base_url}/readyz")
+        assert ready_status == 200
+        readiness = next(check for check in ready_payload["checks"] if check["name"] == "readiness")
+        assert readiness["details"]["calendars"] >= 1
+    finally:
+        server.shutdown()
+
+
+def test_example_server_respects_database_url_env(postgres_url, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", postgres_url)
+    server = ExampleServer(database_url=None, seed=True)
+    server.serve_in_thread()
+    try:
+        ready_status, ready_payload, _ = _fetch_json(f"{server.base_url}/readyz")
+        assert ready_status == 200
+        readiness = next(check for check in ready_payload["checks"] if check["name"] == "readiness")
+        assert readiness["details"]["calendars"] >= 1
+
+        state_status, state_payload, _ = _fetch_json(f"{server.base_url}/state")
+        assert state_status == 200
+        assert state_payload["calendars"]
     finally:
         server.shutdown()

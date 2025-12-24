@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: ArchitectB
+Task: switch calendar backend to postgres
+Context: We need durable state with the least ops friction for demos and Azure deployments.
+Position: Bundle a local Postgres inside the example server container while allowing external DBs via configuration.
+Recommendations:
+- Export `DATABASE_URL` from the container entrypoint so the server automatically connects.
+- Allow overrides for DB credentials and host to support cloud resources.
+- Ensure health/readiness probes surface storage failures promptly.

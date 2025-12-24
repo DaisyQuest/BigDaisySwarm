@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
@@ -11,14 +13,29 @@ from urllib.parse import urlparse
 from .calendar import CalendarError, CalendarService, DSLExecutor, EventService, Participant, ParticipantService
 from .health import http_status_code, liveness_check, readiness_check, summarize
 from .serialization import hydrate_storage, serialize_storage
-from .storage import CalendarStorage, InMemoryCalendarStorage
+from .storage import CalendarStorage, InMemoryCalendarStorage, PostgresCalendarStorage
 
 
 class ExampleServer:
     """Minimal HTTP server that exposes health checks, DSL execution, and state inspection."""
 
-    def __init__(self, *, storage: Optional[CalendarStorage] = None, seed: bool = True, enable_cors: bool = True):
-        self._storage = storage or InMemoryCalendarStorage()
+    def __init__(
+        self,
+        *,
+        storage: Optional[CalendarStorage] = None,
+        seed: bool = True,
+        enable_cors: bool = True,
+        database_url: Optional[str] = None,
+    ):
+        resolved_storage = storage
+        if resolved_storage is None:
+            db_url = database_url or os.getenv("DATABASE_URL")
+            if db_url:
+                resolved_storage = PostgresCalendarStorage(db_url)
+            else:
+                resolved_storage = InMemoryCalendarStorage()
+
+        self._storage = resolved_storage
         self._calendar_service = CalendarService(self._storage)
         self._event_service = EventService(self._calendar_service, self._storage)
         self._participant_service = ParticipantService(self._event_service)
@@ -179,7 +196,10 @@ class ExampleServer:
                     return
 
                 try:
-                    hydrate_storage(server._storage, payload)
+                    if hasattr(server._storage, "replace_state"):
+                        server._storage.replace_state(payload)  # type: ignore[attr-defined]
+                    else:
+                        hydrate_storage(server._storage, payload)
                     snapshot = serialize_storage(server._storage)
                 except CalendarError as exc:
                     self._write_json({"error": str(exc)}, status=400)
@@ -221,6 +241,9 @@ class ExampleServer:
             self._httpd.server_close()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2)
+        if hasattr(self._storage, "close"):
+            with contextlib.suppress(Exception):
+                self._storage.close()  # type: ignore[attr-defined]
 
     @property
     def server_address(self) -> tuple[str, int]:
@@ -251,6 +274,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disable permissive CORS headers. Enabled by default for browser demos.",
     )
+    parser.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL"),
+        help="PostgreSQL connection string. If omitted, the server falls back to in-memory storage.",
+    )
     return parser
 
 
@@ -258,7 +286,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    server = ExampleServer(seed=not args.no_seed, enable_cors=not args.disable_cors)
+    server = ExampleServer(
+        seed=not args.no_seed,
+        enable_cors=not args.disable_cors,
+        database_url=args.database_url,
+    )
     try:
         server.serve(host=args.host, port=args.port)
     except KeyboardInterrupt:

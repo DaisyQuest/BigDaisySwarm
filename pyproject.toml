@@ -9,7 +9,9 @@ description = "Agent coordination toolkit for project specs, meetings, and team 
 readme = "README.md"
 authors = [{name = "Big Daisy Swarm Team"}]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "psycopg[binary,pool]>=3.2,<3.3",
+]
 
 [project.optional-dependencies]
 dev = [

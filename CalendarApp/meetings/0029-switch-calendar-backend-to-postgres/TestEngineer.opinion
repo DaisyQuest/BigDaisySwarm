@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: TestEngineer
+Task: switch calendar backend to postgres
+Context: Persistence introduces new failure modes (connection errors, schema issues) we must test.
+Position: Integration tests against Postgres are mandatory; readiness endpoints should surface storage health.
+Recommendations:
+- Add fixtures that spin up the local cluster and validate DB creation, state replacement, and participant/override handling.
+- Cover environment-driven configuration (`DATABASE_URL`) and ensure the server still responds correctly.
+- Keep pytest fast by reusing the system cluster and cleaning databases after each test.

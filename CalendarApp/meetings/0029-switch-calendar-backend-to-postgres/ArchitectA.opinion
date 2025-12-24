@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: ArchitectA
+Task: switch calendar backend to postgres
+Context: The calendar backend must persist data beyond process restarts and support production deployments without sacrificing the simple demo experience.
+Position: PostgreSQL should be the primary storage, with a one-click container experience that still works locally.
+Recommendations:
+- Provide a concrete Postgres-backed storage implementation with pooling and schema creation.
+- Keep the in-memory fallback for tests and quick demos.
+- Wire the example server to default to Postgres when `DATABASE_URL` is present (or auto-set in the container).

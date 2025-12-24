@@ -31,7 +31,7 @@ from .project import (
 )
 from .publishing import PublishingChannel, PublishingPipeline, PublishingStage
 from .serialization import dump_storage, hydrate_storage, load_storage, serialize_event, serialize_storage
-from .storage import CalendarStorage, InMemoryCalendarStorage
+from .storage import CalendarStorage, InMemoryCalendarStorage, PostgresCalendarStorage
 from .example_server import ExampleServer
 
 
@@ -75,6 +75,7 @@ __all__ = [
     "ParticipantService",
     "CalendarStorage",
     "InMemoryCalendarStorage",
+    "PostgresCalendarStorage",
     "ExampleServer",
     "dump_storage",
     "hydrate_storage",

@@ -1,0 +1,11 @@
+# Opinion
+
+Meeting: 0029-switch-calendar-backend-to-postgres
+Agent: Arbiter
+Task: switch calendar backend to postgres
+Context: Balancing durability with ease-of-use for the example server container.
+Position: Approve Postgres as the default with automatic container wiring plus in-memory fallback for low-friction scenarios.
+Recommendations:
+- Ensure entrypoint exports `DATABASE_URL` for the bundled Postgres instance.
+- Maintain clear documentation of defaults and override options.
+- Keep test coverage high for Postgres storage and server readiness paths.
